@@ -16,6 +16,7 @@
 
 import type { LucideIcon } from "lucide-react";
 import { TrendingUp, TrendingDown, Minus } from "lucide-react";
+import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { Card } from "./Card";
 
@@ -177,8 +178,17 @@ export function KpiCard({
     </>
   );
 
-  // If interactive, wrap in a button-styled link/div
-  if (href || onClick) {
+  if (href) {
+    return (
+      <Link href={href} className="block">
+        <Card padding={24} hoverable className="h-full">
+          {inner}
+        </Card>
+      </Link>
+    );
+  }
+
+  if (onClick) {
     const interactiveProps = {
       role: "button" as const,
       tabIndex: 0,

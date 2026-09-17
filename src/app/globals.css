@@ -59,6 +59,15 @@
   --radius-lg: 12px;    /* modals */
   --radius-xl: 20px;    /* buttons, badges, tags */
   --radius-full: 200px; /* nav capsule */
+
+  /* ----- Elevation ----- */
+  --shadow-card: 0 1px 3px rgba(32, 32, 32, 0.04), 0 4px 12px rgba(32, 32, 32, 0.03);
+  --shadow-card-hover: 0 2px 6px rgba(32, 32, 32, 0.06), 0 8px 20px rgba(32, 32, 32, 0.05);
+}
+
+:root {
+  --shadow-card: 0 1px 3px rgba(32, 32, 32, 0.04), 0 4px 12px rgba(32, 32, 32, 0.03);
+  --shadow-card-hover: 0 2px 6px rgba(32, 32, 32, 0.06), 0 8px 20px rgba(32, 32, 32, 0.05);
 }
 
 /* -----------------------------------------------------------------------------
@@ -91,4 +100,13 @@ button {
 }
 button:disabled {
   cursor: not-allowed;
+}
+
+/* Sidebar offset lives on <html data-sidebar>, not on <main> itself. */
+html[data-sidebar="collapsed"] main {
+  padding-left: 60px;
+}
+html[data-sidebar="expanded"] main,
+html:not([data-sidebar]) main {
+  padding-left: 240px;
 }

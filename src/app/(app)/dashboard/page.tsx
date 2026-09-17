@@ -1,252 +1,248 @@
-/**
- * Dashboard (Home) — wired to real Suburban Toppers data (Supabase).
- *
- * Server Component: fetches everything server-side via getDashboardData()
- * (which bypasses RLS using the service_role key — see src/lib/supabase/admin.ts)
- * and passes plain, serializable data down to the (already client-side)
- * chart components.
- *
- * Honesty notes (see src/lib/data/dashboard.ts for the full explanation):
- *   - Invoices/revenue/sales figures are real and current (data through
- *     ~Jul 2026).
- *   - The install *schedule* (`appointments` table) hasn't been used since
- *     2014 — this dealer moved scheduling elsewhere years ago. "Today's
- *     Installs" is therefore relabeled "Most Recent Scheduled Installs
- *     (Legacy Data)" and shows the last day that actually has rows, not
- *     literally today. Real live scheduling is Phase 2a on the roadmap
- *     (Google Calendar sync).
- *   - "Stock vs. Custom Order" from the old mockup was dropped — there's no
- *     confident real analog for that distinction in the source data.
- */
-
 import Link from "next/link";
-import { ArrowRight, FileText, AlertCircle, TrendingUp, Wrench } from "lucide-react";
-import { PageHeader, KpiCard, Card } from "@/components/ui";
+import {
+  ArrowRight,
+  Package,
+  Wrench,
+  CircleDollarSign,
+  Archive,
+  AlertTriangle,
+  Clock,
+  Phone,
+  CalendarClock,
+} from "lucide-react";
+import { PageHeader, KpiCard, Card, StatusBadge } from "@/components/ui";
 import { RevenueChart } from "@/components/dashboard/RevenueChart";
-import { ReadyForInstallTable } from "@/components/dashboard/ReadyForInstallTable";
-import { DonutChartCard, type DonutDatum } from "@/components/charts/DonutChartCard";
-import { SalesBreakdownCard } from "@/components/charts/SalesBreakdownCard";
-import { MorningBriefingCard } from "@/components/dashboard/MorningBriefingCard";
-import { getDashboardData, type DashboardInstall, type SalesBreakdownRow } from "@/lib/data/dashboard";
+import { DonutChartCard } from "@/components/charts/DonutChartCard";
+import { SampleBanner } from "@/components/demo/SampleBadge";
+import { getDashboardData } from "@/lib/data/dashboard";
 import { formatCurrency } from "@/lib/utils";
+import {
+  actionQueue,
+  bucketStats,
+  DASHBOARD_REVENUE_FALLBACK,
+  JOB_BUCKET_META,
+  type ActionKind,
+} from "@/lib/demo/crm";
 
-const DONUT_COLORS = [
-  "var(--color-signal-orange)",
-  "var(--color-sienna-bronze)",
-  "var(--color-graphite)",
-  "var(--color-slate)",
-  "var(--color-chalk)",
-];
+const ACTION_ICON: Record<ActionKind, typeof AlertTriangle> = {
+  stale_lead: Clock,
+  nudge: AlertTriangle,
+  arrival: Package,
+  payment: CircleDollarSign,
+  schedule: CalendarClock,
+};
 
-function toDonutData(rows: SalesBreakdownRow[]): DonutDatum[] {
-  const total = rows.reduce((sum, r) => sum + r.revenue, 0);
-  if (total === 0) return [];
-  const top = rows.slice(0, 4);
-  const rest = rows.slice(4);
-  const restRevenue = rest.reduce((sum, r) => sum + r.revenue, 0);
-  const entries = restRevenue > 0 ? [...top, { key: "Other", count: 0, revenue: restRevenue }] : top;
-  return entries.map((r, i) => ({
-    name: r.key,
-    value: Math.round((r.revenue / total) * 1000) / 10,
-    color: DONUT_COLORS[i] ?? DONUT_COLORS[DONUT_COLORS.length - 1],
-  }));
-}
-
-function formatDataDate(iso: string | null): string {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
-}
+const URGENCY_LABEL = { now: "Now", today: "Today", soon: "Soon" } as const;
 
 export default async function DashboardPage() {
-  const data = await getDashboardData();
+  const live = await getDashboardData();
+  const buckets = bucketStats();
+  const queue = actionQueue();
+  const revenue =
+    live.monthlyRevenue.length >= 4
+      ? live.monthlyRevenue.map((m) => ({ label: m.month, value: m.value }))
+      : DASHBOARD_REVENUE_FALLBACK.map((m) => ({ label: m.month, value: m.value }));
 
-  const donutData = toDonutData(data.salesByManufacturer);
-  const topManufacturer = donutData[0];
-
-  // Month-over-month revenue delta (real, computed from the trailing series)
-  const months = data.monthlyRevenue;
-  const thisMonth = months[months.length - 1];
-  const lastMonth = months[months.length - 2];
+  const usingLiveRevenue = live.monthlyRevenue.length >= 4;
+  const thisMonth = revenue[revenue.length - 1];
+  const lastMonth = revenue[revenue.length - 2];
   const momDeltaPct =
     thisMonth && lastMonth && lastMonth.value > 0
       ? Math.round(((thisMonth.value - lastMonth.value) / lastMonth.value) * 1000) / 10
       : null;
 
+  const mfr = [
+    { name: "A.R.E.", value: 52, color: "var(--color-signal-orange)" },
+    { name: "ATC", value: 18, color: "var(--color-sienna-bronze)" },
+    { name: "Leer", value: 17, color: "var(--color-graphite)" },
+    { name: "Snugtop", value: 13, color: "var(--color-slate)" },
+  ];
+
+  const waitingArrival = buckets.groups.find((g) => g.bucket === "waiting_arrival")!;
+  const waitingInstall = buckets.groups.find((g) => g.bucket === "waiting_install")!;
+  const waitingPayment = buckets.groups.find((g) => g.bucket === "waiting_payment")!;
+  const paid = buckets.groups.find((g) => g.bucket === "paid")!;
+
   return (
     <div>
       <PageHeader
         breadcrumbs={[{ label: "Suburban Toppers" }, { label: "Dashboard" }]}
-        title="Dashboard"
+        title="Today at the shop"
+        subtitle="Bucket counts first. Revenue is context — not the only number on the wall."
       />
 
-      <div style={{ padding: "0 32px 32px 32px" }}>
-        {/* === Section A: KPI Row (real data) === */}
+      <div style={{ padding: "0 32px 40px 32px" }}>
+        <SampleBanner>
+          Ops KPIs and the action queue use labeled sample jobs and leads so the A→B walkthrough
+          works without touching production invoices.{" "}
+          {usingLiveRevenue
+            ? "The revenue chart is live trailing data from Supabase."
+            : "Supabase isn’t configured here, so the revenue chart uses sample trailing months."}
+        </SampleBanner>
+
         <div
           className="grid"
-          style={{ gridTemplateColumns: "repeat(4, 1fr)", gap: "20px", marginBottom: "32px" }}
+          style={{ gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: "16px", marginBottom: "24px" }}
         >
           <KpiCard
-            label="Open Invoices"
-            value={data.openInvoiceCount.toLocaleString()}
-            icon={FileText}
-            iconAccent="orange"
-            contextLabel="not yet closed out"
+            label={JOB_BUCKET_META.waiting_arrival.short}
+            value={waitingArrival.count}
+            icon={Package}
+            href="/jobs?bucket=waiting_arrival"
+            contextLabel={`${formatCurrency(waitingArrival.value)} on order`}
           />
           <KpiCard
-            label="Open Balance"
-            value={formatCurrency(data.openInvoiceBalance)}
-            icon={AlertCircle}
+            label={JOB_BUCKET_META.waiting_install.short}
+            value={waitingInstall.count}
+            icon={Wrench}
+            href="/jobs?bucket=waiting_install"
+            contextLabel={`${formatCurrency(waitingInstall.value)} on the lot`}
+          />
+          <KpiCard
+            label={JOB_BUCKET_META.waiting_payment.short}
+            value={waitingPayment.count}
+            icon={CircleDollarSign}
             iconAccent="bronze"
             tone="bad"
-            contextLabel="across all open invoices"
+            href="/jobs?bucket=waiting_payment"
+            contextLabel={`${formatCurrency(waitingPayment.value)} billed at install`}
           />
           <KpiCard
-            label="This Month's Revenue"
-            value={thisMonth ? formatCurrency(thisMonth.value) : "—"}
-            icon={TrendingUp}
-            iconAccent="orange"
+            label="Paid this board"
+            value={paid.count}
+            icon={Archive}
+            href="/jobs?bucket=paid"
             deltaDirection={momDeltaPct == null ? undefined : momDeltaPct >= 0 ? "up" : "down"}
             deltaValue={momDeltaPct == null ? undefined : `${momDeltaPct > 0 ? "+" : ""}${momDeltaPct}%`}
-            contextLabel="vs. last month"
-          />
-          <KpiCard
-            label="Most Recent Installs"
-            value={data.installs.length}
-            icon={Wrench}
-            iconAccent="orange"
-            contextLabel={`legacy schedule data — ${formatDataDate(data.recentInstallDate)}`}
+            contextLabel={thisMonth ? `${formatCurrency(thisMonth.value)} trailing month` : "archived, searchable"}
           />
         </div>
 
-        {/* === Section B: Charts Row (60/40) === */}
         <div
           className="grid"
-          style={{ gridTemplateColumns: "3fr 2fr", gap: "20px", marginBottom: "32px" }}
+          style={{ gridTemplateColumns: "minmax(0, 1.15fr) minmax(0, 0.85fr)", gap: "16px", marginBottom: "24px" }}
         >
-          <RevenueChart data={data.monthlyRevenue.map((m) => ({ label: m.month, value: m.value }))} />
-          {donutData.length > 0 && (
-            <DonutChartCard
-              title="Sales by Manufacturer"
-              data={donutData}
-              centerValue={`${topManufacturer?.value ?? 0}%`}
-              centerLabel={topManufacturer?.name ?? ""}
-            />
-          )}
-        </div>
-
-        {/* === Section C: Most Recent Scheduled Installs (legacy data) === */}
-        <Card padding={0} className="mb-32">
-          <div
-            className="flex items-center justify-between"
-            style={{ padding: "20px 24px", borderBottom: "1px solid var(--color-chalk)" }}
-          >
-            <div>
-              <h3
-                className="text-carbon"
-                style={{ fontFamily: "var(--font-display)", fontSize: "16px", fontWeight: 600, lineHeight: 1.2 }}
-              >
-                Most Recent Scheduled Installs
-              </h3>
-              <p className="text-slate" style={{ fontSize: "12px", marginTop: "2px" }}>
-                From legacy scheduling data ({formatDataDate(data.recentInstallDate)}) — live schedule sync is
-                planned (Roadmap Phase 2a).
-              </p>
-            </div>
-            <Link
-              href="/schedule"
-              className="text-signal-orange inline-flex items-center shrink-0"
-              style={{ fontSize: "14px", fontWeight: 500, gap: "4px" }}
+          <Card padding={0}>
+            <div
+              className="flex items-center justify-between"
+              style={{ padding: "18px 22px", borderBottom: "1px solid var(--color-chalk)" }}
             >
-              View Schedule
-              <ArrowRight size={14} strokeWidth={2} />
-            </Link>
+              <div>
+                <h3
+                  className="text-carbon"
+                  style={{ fontFamily: "var(--font-display)", fontSize: "16px", fontWeight: 600 }}
+                >
+                  Action queue
+                </h3>
+                <p className="text-slate" style={{ fontSize: "12px", marginTop: "2px" }}>
+                  Stale leads, arrivals to schedule, money waiting.
+                </p>
+              </div>
+              <Link
+                href="/jobs"
+                className="text-signal-orange inline-flex items-center"
+                style={{ fontSize: "13px", fontWeight: 600, gap: "4px" }}
+              >
+                Jobs board
+                <ArrowRight size={14} />
+              </Link>
+            </div>
+            <ul>
+              {queue.slice(0, 8).map((item, i) => {
+                const Icon = ACTION_ICON[item.kind];
+                return (
+                  <li key={item.id} style={{ borderBottom: i < 7 ? "1px solid var(--color-chalk)" : undefined }}>
+                    <Link
+                      href={item.href}
+                      className="flex items-start hover:bg-fog transition-colors"
+                      style={{ padding: "12px 22px", gap: "12px", textDecoration: "none" }}
+                    >
+                      <div
+                        className="rounded-md flex items-center justify-center shrink-0"
+                        style={{
+                          width: "32px",
+                          height: "32px",
+                          background:
+                            item.urgency === "now"
+                              ? "color-mix(in srgb, var(--color-signal-orange) 12%, transparent)"
+                              : "var(--color-fog)",
+                          color:
+                            item.urgency === "now" ? "var(--color-signal-orange)" : "var(--color-graphite)",
+                        }}
+                      >
+                        <Icon size={15} strokeWidth={2} />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center" style={{ gap: "8px" }}>
+                          <span className="text-carbon truncate" style={{ fontSize: "13px", fontWeight: 600 }}>
+                            {item.title}
+                          </span>
+                          <StatusBadge
+                            variant={item.urgency === "now" ? "red" : item.urgency === "today" ? "amber" : "blue"}
+                          >
+                            {URGENCY_LABEL[item.urgency]}
+                          </StatusBadge>
+                        </div>
+                        <div className="text-slate truncate" style={{ fontSize: "12px", marginTop: "2px" }}>
+                          {item.detail}
+                        </div>
+                      </div>
+                      {item.meta && (
+                        <div className="text-graphite shrink-0" style={{ fontSize: "12px", fontWeight: 600 }}>
+                          {item.meta}
+                        </div>
+                      )}
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </Card>
+
+          <div className="flex flex-col" style={{ gap: "16px" }}>
+            <DonutChartCard
+              title="Sales mix"
+              data={mfr}
+              centerValue={`${mfr[0].value}%`}
+              centerLabel={mfr[0].name}
+            />
+            <Card padding={20}>
+              <div className="text-slate" style={{ fontSize: "12px", fontWeight: 600, letterSpacing: "0.04em", textTransform: "uppercase" }}>
+                Jump in
+              </div>
+              <div className="grid" style={{ gridTemplateColumns: "1fr 1fr", gap: "8px", marginTop: "12px" }}>
+                <Jump href="/phone-agent" label="Phone AI console" icon={Phone} />
+                <Jump href="/leads" label="Leads pipeline" icon={Clock} />
+                <Jump href="/schedule" label="Today’s calendar" icon={CalendarClock} />
+                <Jump href="/reports/historical" label="2025 vs 2026" icon={ArrowRight} />
+              </div>
+            </Card>
           </div>
-          <InstallList installs={data.installs} />
-        </Card>
-
-        {/* === Section D: Ready for Install === */}
-        <div className="mb-32">
-          <ReadyForInstallTable items={data.readyForInstall} />
         </div>
 
-        {/* === Section E: Sales by Manufacturer / Truck Brand / Model === */}
-        <div
-          className="grid"
-          style={{ gridTemplateColumns: "1fr 1fr 1fr", gap: "20px", marginBottom: "32px" }}
-        >
-          <SalesBreakdownCard
-            title="Sales by Truck Brand"
-            subtitle="units sold, trailing data"
-            rows={data.salesByTruckBrand}
-          />
-          <SalesBreakdownCard
-            title="Sales by Truck Model"
-            subtitle="top 6"
-            rows={data.salesByTruckModel}
-            maxRows={6}
-            barColor="var(--color-sienna-bronze)"
-          />
-          <SalesBreakdownCard
-            title="Sales by Manufacturer"
-            subtitle="top 8, all-time"
-            rows={data.salesByManufacturer}
-            barColor="var(--color-graphite)"
-          />
-        </div>
-
-        {/* === Section F: Morning Briefing (Phase 2c agent) === */}
-        <div className="grid" style={{ gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
-          <MorningBriefingCard />
-        </div>
+        <RevenueChart data={revenue} />
       </div>
     </div>
   );
 }
 
-// ============================================================================
-// Sub-component: recent-installs list (single list now — legacy data no
-// longer maps cleanly to the two-location split the mockup assumed, since
-// most rows in this old table don't have a location set).
-// ============================================================================
-
-function InstallList({ installs }: { installs: DashboardInstall[] }) {
-  if (installs.length === 0) {
-    return (
-      <div className="text-slate" style={{ fontSize: "14px", textAlign: "center", padding: "24px 0" }}>
-        No installs in the legacy schedule data.
-      </div>
-    );
-  }
+function Jump({ href, label, icon: Icon }: { href: string; label: string; icon: typeof Phone }) {
   return (
-    <div style={{ padding: "20px 24px" }}>
-      <div className="flex flex-col" style={{ gap: "8px" }}>
-        {installs.map((inst) => (
-          <div
-            key={inst.id}
-            className="bg-paper rounded-md"
-            style={{
-              padding: "10px 12px",
-              borderLeft: "3px solid var(--color-signal-orange)",
-              background: "var(--color-fog)",
-              display: "flex",
-              alignItems: "center",
-              gap: "12px",
-            }}
-          >
-            <div className="min-w-0 flex-1">
-              <div className="text-carbon truncate" style={{ fontSize: "13px", fontWeight: 500 }}>
-                {inst.clientName}
-              </div>
-              <div className="text-slate truncate" style={{ fontSize: "12px", lineHeight: 1.2 }}>
-                {inst.status ?? "No status"} {inst.locationName ? `· ${inst.locationName.trim()}` : ""}
-              </div>
-            </div>
-            <div className="text-slate shrink-0" style={{ fontSize: "12px", whiteSpace: "nowrap" }}>
-              {inst.completed ? "Completed" : "Not completed"}
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
+    <Link
+      href={href}
+      className="rounded-md flex items-center hover:bg-fog"
+      style={{
+        gap: "8px",
+        padding: "10px 12px",
+        border: "1px solid var(--color-chalk)",
+        fontSize: "13px",
+        fontWeight: 500,
+        color: "var(--color-carbon)",
+        textDecoration: "none",
+      }}
+    >
+      <Icon size={14} className="text-signal-orange" />
+      {label}
+    </Link>
   );
 }

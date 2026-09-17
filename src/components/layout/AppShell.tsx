@@ -11,12 +11,14 @@
 
 import type { ReactNode } from "react";
 import { Sidebar } from "./Sidebar";
+import { TopBar } from "./TopBar";
 
 export function AppShell({ children }: { children: ReactNode }) {
   return (
     <>
       <Sidebar />
-      <main className="min-h-screen bg-canvas transition-[padding] duration-200 ease-in-out pl-[240px] data-[sidebar=collapsed]:pl-[60px]">
+      <main className="min-h-screen bg-canvas transition-[padding] duration-200 ease-in-out pl-[240px] [[data-sidebar=collapsed]_&]:pl-[60px]">
+        <TopBar />
         {children}
       </main>
     </>

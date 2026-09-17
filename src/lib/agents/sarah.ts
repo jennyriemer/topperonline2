@@ -138,7 +138,7 @@ export const rulesBrain: SarahBrain = ({ lead, history, inbound }) => {
           `Hi ${firstName}! This is Sarah from Suburban Toppers. I saw you were interested in ` +
           `${lead.interest || "a topper"} for your ${lead.vehicle}. ${stockLine} — ` +
           `starting around $${top.priceFrom.toLocaleString()}. Want to come by for a look, or I can answer any questions right here!`,
-        nextStage: "ai_contacted",
+        nextStage: "contacted",
       };
     }
     return {
@@ -146,7 +146,7 @@ export const rulesBrain: SarahBrain = ({ lead, history, inbound }) => {
         `Hi ${firstName}! This is Sarah from Suburban Toppers. Thanks for reaching out about ` +
         `${lead.interest || "a topper"}. What's the year, make, and model of your truck? ` +
         `I'll check exactly what fits.`,
-      nextStage: "ai_contacted",
+      nextStage: "contacted",
     };
   }
 
@@ -164,7 +164,7 @@ export const rulesBrain: SarahBrain = ({ lead, history, inbound }) => {
       reply:
         `You're all set for Saturday at 10am, ${firstName}! We'll send a reminder the day before. ` +
         `Bring the truck and we'll get you measured up. See you then! 🛻`,
-      nextStage: "appointment_set",
+      nextStage: "sale_pending",
     };
   }
 
@@ -179,7 +179,7 @@ export const rulesBrain: SarahBrain = ({ lead, history, inbound }) => {
         `Perfect! We're at 5795 E. Colfax Ave in Denver — open Mon-Fri 8-6, Sat 9-2. ` +
         `Does Saturday at 10am work? I'll have ${firstNameOfStaff()} set aside time for you. ` +
         `Just reply YES to confirm.`,
-      nextStage: "responded",
+      nextStage: "conversation",
     };
   }
 
@@ -190,7 +190,7 @@ export const rulesBrain: SarahBrain = ({ lead, history, inbound }) => {
         `Right now we have ${formatList([...new Set(colors)])} in stock. ` +
         `We can also order any factory-matched color — takes about ${fit?.options[0]?.orderWeeks ?? 4} weeks. ` +
         `Want to swing by and see them in person?`,
-      nextStage: "responded",
+      nextStage: "conversation",
     };
   }
 
@@ -204,14 +204,14 @@ export const rulesBrain: SarahBrain = ({ lead, history, inbound }) => {
           `For your ${fit.truckLabel}: ${lines} — installed. ` +
           `Exact price depends on options (windows, racks, headliner). ` +
           `Fastest way to a firm quote is a quick visit. Want me to set something up?`,
-        nextStage: "responded",
+        nextStage: "conversation",
       };
     }
     return {
       reply:
         `Toppers typically run $2,500–$4,500 installed depending on the truck and options. ` +
         `Tell me your truck's year, make, and model and I'll narrow it down!`,
-      nextStage: "responded",
+      nextStage: "conversation",
     };
   }
 
@@ -220,7 +220,7 @@ export const rulesBrain: SarahBrain = ({ lead, history, inbound }) => {
     reply:
       `Thanks, ${firstName}! Happy to help with that. Anything else you'd like to know? ` +
       `And if you'd like to see options in person, we're at 5795 E. Colfax — I can set up a time that works for you.`,
-    nextStage: "responded",
+    nextStage: "conversation",
   };
 };
 
@@ -237,7 +237,7 @@ function firstNameOfStaff(): string {
 // Public API — the plumbing that routes + audits (brain-agnostic)
 // ---------------------------------------------------------------------------
 
-const STAGE_ORDER = ["new_lead", "ai_contacted", "responded", "appointment_set", "confirmed_sale"];
+const STAGE_ORDER = ["new_lead", "contacted", "conversation", "sale_pending", "in_order"];
 
 function maybeAdvanceStage(lead: LeadRow, nextStage?: string) {
   if (!nextStage) return;
@@ -282,8 +282,8 @@ export function sarahHandleInbound(leadId: string, inboundBody: string, brain: S
   addLeadMessage(lead.id, "customer", inboundBody);
 
   // Customer replied — that's at least "responded"
-  if (lead.stage === "ai_contacted" || lead.stage === "new_lead") {
-    maybeAdvanceStage(lead, "responded");
+  if (lead.stage === "contacted" || lead.stage === "ai_contacted" || lead.stage === "new_lead") {
+    maybeAdvanceStage(lead, "conversation");
   }
 
   if (!lead.ai_handled) {

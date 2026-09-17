@@ -12,7 +12,7 @@
  * back-button-friendly, same as the original mockup.
  */
 
-import { Suspense, useState, useEffect, useCallback, useRef } from "react";
+import { Suspense, useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Plus, Download, Filter, Users } from "lucide-react";
 import type { ColumnDef } from "@tanstack/react-table";
@@ -22,12 +22,57 @@ import type { ClientListRow } from "@/lib/data/clients";
 import { textColumn, dateColumn, currencyColumn } from "@/lib/columns";
 import { formatPhone } from "@/lib/utils";
 import { statusToVariant } from "@/lib/mock-data";
+import {
+  DEMO_CLIENTS,
+  DEMO_INVOICES,
+  JOB_BUCKET_META,
+  getDemoJob,
+  invoiceTotals,
+  jobsForClient,
+  phoneMatches,
+} from "@/lib/demo/crm";
+import { SampleBadge } from "@/components/demo/SampleBadge";
 
 const FILTERS: { key: "all" | "commercial" | "residential"; label: string }[] = [
   { key: "all", label: "All" },
   { key: "commercial", label: "Commercial" },
   { key: "residential", label: "Residential" },
 ];
+
+function demoToRow(c: (typeof DEMO_CLIENTS)[number]): ClientListRow {
+  const jobs = jobsForClient(c.id);
+  const latest = jobs[0];
+  const inv = latest ? DEMO_INVOICES.find((i) => i.id === latest.invoiceId) : undefined;
+  const job = latest ? getDemoJob(latest.id) : undefined;
+  const meta = job ? JOB_BUCKET_META[job.bucket] : null;
+  const spend = jobs.reduce((s, j) => {
+    const i = DEMO_INVOICES.find((x) => x.id === j.invoiceId);
+    return s + (i ? invoiceTotals(i).total : 0);
+  }, 0);
+  return {
+    id: c.id,
+    companyName: c.companyName,
+    firstName: c.firstName,
+    lastName: c.lastName,
+    type: c.type,
+    phone: c.phone,
+    email: c.email,
+    address: c.address,
+    city: c.city,
+    state: c.state,
+    zip: c.zip,
+    notes: c.notes,
+    lastInvoiceNumber: inv?.number ?? null,
+    lastInvoiceDate: job?.billedAt ?? job?.orderedAt ?? null,
+    lastInvoiceAmount: inv ? invoiceTotals(inv).total : null,
+    lastInvoiceStatusLabel: meta?.short ?? "Sample",
+    lastInvoiceStatusVariant: job?.bucket === "paid" ? "paid" : job?.bucket === "waiting_payment" ? "overdue" : "pending",
+    totalInvoices: jobs.length,
+    totalSpend: spend,
+  };
+}
+
+const DEMO_ROWS = DEMO_CLIENTS.map(demoToRow);
 
 interface ClientsTableProps {
   initialClients: ClientListRow[];
@@ -51,6 +96,22 @@ function ClientsTableInner({ initialClients, initialTotalMatching }: ClientsTabl
   const [totalMatching, setTotalMatching] = useState(initialTotalMatching);
   const [loading, setLoading] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const visibleDemo = useMemo(() => {
+    const q = search.trim();
+    return DEMO_ROWS.filter((c) => {
+      if (filter !== "all" && c.type !== filter) return false;
+      if (!q) return true;
+      const digits = q.replace(/\D/g, "");
+      if (digits.length >= 3 && phoneMatches(c.phone, q)) return true;
+      const blob = `${c.companyName ?? ""} ${c.firstName} ${c.lastName} ${c.email}`.toLowerCase();
+      return blob.includes(q.toLowerCase());
+    });
+  }, [search, filter]);
+
+  const merged = useMemo(() => {
+    const rest = clients.filter((c) => !c.id.startsWith("demo-"));
+    return [...visibleDemo, ...rest];
+  }, [visibleDemo, clients]);
 
   // Drawer state — driven by ?id=1234 in the URL
   const openClientId = searchParams.get("id");
@@ -99,8 +160,13 @@ function ClientsTableInner({ initialClients, initialTotalMatching }: ClientsTabl
       header: "Company Name",
       sortKey: (c) => c.companyName ?? `${c.firstName} ${c.lastName}`,
       render: (c) => (
-        <span style={{ fontWeight: 500, color: "var(--color-carbon)" }}>
+        <span style={{ fontWeight: 500, color: "var(--color-carbon)" }} className="inline-flex items-center" >
           {c.companyName ?? `${c.firstName} ${c.lastName}`}
+          {c.id.startsWith("demo-") && (
+            <span style={{ marginLeft: 8 }}>
+              <SampleBadge />
+            </span>
+          )}
         </span>
       ),
     }),
@@ -180,13 +246,15 @@ function ClientsTableInner({ initialClients, initialTotalMatching }: ClientsTabl
               >
                 All Clients
                 <span className="text-slate" style={{ fontSize: "13px", fontWeight: 400, marginLeft: "8px" }}>
-                  ({totalMatching.toLocaleString()}{loading ? " · searching…" : ""})
+                  ({(totalMatching + visibleDemo.length).toLocaleString()}
+                  {loading ? " · searching…" : ""}
+                  {visibleDemo.length ? ` · ${visibleDemo.length} sample` : ""})
                 </span>
               </h2>
             </div>
             <div className="flex items-center" style={{ gap: "8px" }}>
               <SearchInput
-                placeholder="Search by name, phone, company…"
+                placeholder="Phone first — try 303-903"
                 value={search}
                 onChange={setSearch}
                 style={{ width: "280px" }}
@@ -228,12 +296,12 @@ function ClientsTableInner({ initialClients, initialTotalMatching }: ClientsTabl
           {/* Table */}
           <DataTable
             columns={columns}
-            data={clients}
+            data={merged}
             getRowId={(c) => c.id}
-            onRowClick={(c) => router.push(`/clients?id=${encodeURIComponent(c.id)}`)}
+            onRowClick={(c) => router.push(`/clients/${encodeURIComponent(c.id)}`)}
             emptyIcon={Users}
             emptyTitle="No clients found"
-            emptyDescription="Try a different search term or filter."
+            emptyDescription="Try a phone fragment like 303-903, or a last name."
           />
         </div>
       </div>

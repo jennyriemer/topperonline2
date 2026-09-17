@@ -226,14 +226,15 @@ export function Sidebar() {
               >
                 <LogOut size={18} strokeWidth={2} />
               </button>
-              <button
-                type="button"
+              <Link
+                href="/settings"
                 className="rounded-md flex items-center justify-center text-graphite hover:bg-fog active:bg-chalk transition-colors shrink-0"
                 style={{ width: `${ICON_BUTTON}px`, height: `${ICON_BUTTON}px` }}
                 aria-label="Settings"
+                title="Settings"
               >
                 <Settings size={18} strokeWidth={2} />
-              </button>
+              </Link>
             </div>
           )}
         </div>

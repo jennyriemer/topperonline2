@@ -15,3 +15,6 @@ export { EmptyState } from "./EmptyState";
 export { DataTable, Pagination, type DataTableProps } from "./DataTable";
 export { Drawer } from "./Drawer";
 export { Tabs, type TabItem } from "./Tabs";
+export { Modal } from "./Modal";
+export { TrafficLightDot } from "./TrafficLight";
+export { EmailPreview } from "./EmailPreview";
