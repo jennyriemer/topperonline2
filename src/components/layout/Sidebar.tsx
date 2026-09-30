@@ -126,10 +126,11 @@ export function Sidebar({ onCommand }: { onCommand?: () => void }) {
           style={{ height: 32, gap: 8, padding: collapsed ? 0 : "0 6px" }}
         >
           <span
-            className="inline-flex items-center justify-center shrink-0 overflow-hidden"
-            style={{ width: 24, height: 24, borderRadius: 6, background: "#0E4CA1" }}
+            className="inline-flex items-center justify-center shrink-0 font-display"
+            style={{ width: 24, height: 24, borderRadius: 6, background: "#0E4CA1", color: "#FFD504", fontSize: 10, fontWeight: 800, letterSpacing: "-0.04em" }}
+            aria-hidden
           >
-            <img src="/suburban-toppers-logo.svg" alt="" width={22} height={8} />
+            ST
           </span>
           {!collapsed && (
             <>
