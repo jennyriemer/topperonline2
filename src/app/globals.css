@@ -1,82 +1,115 @@
 @import "tailwindcss";
 
 /* =============================================================================
- * SUBURBAN TOPPERS CRM — DESIGN TOKENS
- * Single source of truth. Edit values here, they propagate everywhere.
- * Source: /DESIGN.md (style reference)
+ * Suburban Toppers CRM — Attio-inspired tokens, brand blue + yellow.
  * ============================================================================= */
 
 @theme {
-  /* ----- Core Colors (the only chromatic accent is Signal Orange) ----- */
-  --color-signal-orange: #ff682c;
-  --color-sienna-bronze: #816729;
-  --color-carbon: #202020;
-  --color-graphite: #4d4d4d;
-  --color-slate: #828282;
-  --color-fog: #f5f5f5;
-  --color-mist: #efefef;
-  --color-chalk: #e8e8e8;
-  --color-paper: #ffffff;
+  --color-brand-50: #EEF4FC;
+  --color-brand-100: #DCE7F7;
+  --color-brand-200: #B6CDEE;
+  --color-brand-400: #4F82CB;
+  --color-brand-500: #1F5DB4;
+  --color-brand-600: #0E4CA1;
+  --color-brand-700: #0B3E85;
+  --color-link: #1357A9;
+  --color-yellow-100: #FFF4BF;
+  --color-yellow-400: #FFD504;
+  --color-yellow-500: #E6BF00;
+  --color-yellow-700: #8A7200;
+  --color-charcoal: #414042;
 
-  /* ----- Semantic Status Colors (badges & inline indicators only) ----- */
-  --color-status-green: #22c55e;
-  --color-status-amber: #f59e0b;
-  --color-status-red: #ef4444;
-  --color-status-blue: #3b82f6;
-  --color-status-purple: #8b5cf6;
+  --color-gray-0: #FFFFFF;
+  --color-gray-25: #FAFAFB;
+  --color-gray-50: #F3F4F6;
+  --color-gray-100: #EDEFF3;
+  --color-gray-150: #E4E7EC;
+  --color-gray-200: #D3D8DF;
+  --color-gray-300: #CAD0D9;
+  --color-gray-400: #A4ADBA;
+  --color-gray-500: #8F99A8;
+  --color-gray-600: #6F7988;
+  --color-gray-700: #505967;
+  --color-gray-900: #232529;
+  --color-ink: #1C1D1F;
 
-  /* ----- Surfaces ----- */
-  --color-canvas: #efefef;       /* page background */
-  --color-surface: #ffffff;      /* card surface */
-  --color-inset: #f5f5f5;        /* alt row, sidebar hover */
-  --color-divider: #e8e8e8;      /* chalk, input borders */
+  --color-success: #0FC27B;
+  --color-success-bg: #E0FCED;
+  --color-success-fg: #007D53;
+  --color-warning: #F5B900;
+  --color-warning-bg: #FFF4BF;
+  --color-warning-fg: #8A6A00;
+  --color-danger: #FF5B59;
+  --color-danger-bg: #FFE8E8;
+  --color-danger-fg: #C23A38;
+  --color-info: #0E4CA1;
+  --color-info-bg: #DCE7F7;
+  --color-info-fg: #0B3E85;
+  --color-purple: #9B69FF;
+  --color-purple-bg: #F1EAFF;
+  --color-purple-fg: #6A3FD1;
+  --color-pink: #E5489A;
+  --color-pink-bg: #FDE7F2;
+  --color-pink-fg: #B02A70;
+  --color-teal: #00B5E6;
+  --color-teal-bg: #E0F6FC;
+  --color-teal-fg: #007A9C;
+  --color-rec-green: #03B071;
+  --color-rec-orange: #FC811F;
 
-  /* ----- Typography: Families ----- */
-  --font-display: var(--font-space-grotesk), ui-sans-serif, system-ui, -apple-system, sans-serif;
-  --font-inter: var(--font-inter), ui-sans-serif, system-ui, -apple-system, sans-serif;
+  /* Legacy aliases so existing class names restyle without a sweep */
+  --color-signal-orange: #0E4CA1;
+  --color-sienna-bronze: #8A7200;
+  --color-carbon: #1C1D1F;
+  --color-graphite: #6F7988;
+  --color-slate: #8F99A8;
+  --color-fog: #F3F4F6;
+  --color-mist: #FAFAFB;
+  --color-chalk: #E4E7EC;
+  --color-paper: #FFFFFF;
+  --color-canvas: #FAFAFB;
+  --color-surface: #FFFFFF;
+  --color-inset: #F3F4F6;
+  --color-divider: #E4E7EC;
 
-  /* ----- Typography: Spacing (custom letter-spacing values) ----- */
-  --tracking-page-title: -0.48px;
-  --tracking-subheading: -0.64px;
-  --tracking-heading: -0.80px;
-  --tracking-kpi-value: -0.64px;
+  --color-status-green: #0FC27B;
+  --color-status-amber: #F5B900;
+  --color-status-red: #FF5B59;
+  --color-status-blue: #0E4CA1;
+  --color-status-purple: #9B69FF;
 
-  /* ----- Spacing Scale (4px base unit) ----- */
-  --spacing-4: 4px;
-  --spacing-8: 8px;
-  --spacing-12: 12px;
-  --spacing-16: 16px;
-  --spacing-20: 20px;
-  --spacing-24: 24px;
-  --spacing-32: 32px;
-  --spacing-36: 36px;
-  --spacing-40: 40px;
-  --spacing-60: 60px;
+  --font-display: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-inter: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, SFMono-Regular, Menlo, monospace;
 
-  /* ----- Border Radius ----- */
   --radius-sm: 4px;
-  --radius-md: 8px;     /* cards, inputs */
-  --radius-lg: 12px;    /* modals */
-  --radius-xl: 20px;    /* buttons, badges, tags */
-  --radius-full: 200px; /* nav capsule */
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --radius-2xl: 16px;
+  --radius-full: 9999px;
 
-  /* ----- Elevation ----- */
-  --shadow-card: 0 1px 3px rgba(32, 32, 32, 0.04), 0 4px 12px rgba(32, 32, 32, 0.03);
-  --shadow-card-hover: 0 2px 6px rgba(32, 32, 32, 0.06), 0 8px 20px rgba(32, 32, 32, 0.05);
+  --shadow-xs: 0 1px 2px 0 rgba(16, 24, 40, 0.04);
+  --shadow-sm: 0 0 0 1px rgba(11, 13, 24, 0.06), 0 1px 2px rgba(11, 13, 24, 0.024), 0 3px 6px rgba(11, 13, 24, 0.03);
+  --shadow-md: 0 0 1px 1px rgba(0, 22, 62, 0.01), 0 4px 12px -1px rgba(0, 22, 62, 0.04), 0 1px 3px -1px rgba(0, 22, 62, 0.18);
+  --shadow-lg: 0 1px 3px oklch(0 0 0 / 0.01), 0 2px 4px -1px oklch(0 0 0 / 0.02), 0 4px 8px -2px oklch(0 0 0 / 0.03), 0 8px 16px -4px oklch(0 0 0 / 0.04), 0 16px 32px -8px oklch(0 0 0 / 0.05);
+  --shadow-card: 0 1px 2px 0 rgba(16, 24, 40, 0.04);
+  --shadow-card-hover: 0 0 1px 1px rgba(0, 22, 62, 0.01), 0 4px 12px -1px rgba(0, 22, 62, 0.04);
+  --ease-attio: cubic-bezier(0.2, 0, 0, 1);
 }
 
 :root {
-  --shadow-card: 0 1px 3px rgba(32, 32, 32, 0.04), 0 4px 12px rgba(32, 32, 32, 0.03);
-  --shadow-card-hover: 0 2px 6px rgba(32, 32, 32, 0.06), 0 8px 20px rgba(32, 32, 32, 0.05);
+  --shadow-card: 0 1px 2px 0 rgba(16, 24, 40, 0.04);
+  --shadow-card-hover: 0 0 1px 1px rgba(0, 22, 62, 0.01), 0 4px 12px -1px rgba(0, 22, 62, 0.04);
+  --ease-attio: cubic-bezier(0.2, 0, 0, 1);
 }
 
-/* -----------------------------------------------------------------------------
- * Base layer
- * --------------------------------------------------------------------------- */
 html, body {
   background: var(--color-canvas);
-  color: var(--color-carbon);
+  color: var(--color-ink);
   font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  font-weight: 500;
+  letter-spacing: -0.005em;
   font-feature-settings: "cv02", "cv03", "cv04", "cv11";
 }
 
@@ -86,27 +119,59 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Smooth focus ring for keyboard nav (matches Carbon border on focus) */
+.font-display {
+  font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  font-optical-sizing: auto;
+  font-variation-settings: "opsz" 32;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.font-mono, .tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+.font-mono {
+  font-family: var(--font-jetbrains), ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-weight: 400;
+}
+
 :focus-visible {
-  outline: 2px solid var(--color-carbon);
-  outline-offset: 2px;
-  border-radius: 4px;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(14, 76, 161, 0.3);
 }
 
-/* Reset button default styling */
-button {
-  font-family: inherit;
-  cursor: pointer;
-}
-button:disabled {
-  cursor: not-allowed;
-}
+button { font-family: inherit; cursor: pointer; }
+button:disabled { cursor: not-allowed; }
 
-/* Sidebar offset lives on <html data-sidebar>, not on <main> itself. */
-html[data-sidebar="collapsed"] main {
-  padding-left: 60px;
-}
+a { color: inherit; }
+
+* { transition-timing-function: var(--ease-attio); }
+
+html[data-sidebar="collapsed"] main { padding-left: 56px; }
 html[data-sidebar="expanded"] main,
-html:not([data-sidebar]) main {
-  padding-left: 240px;
+html:not([data-sidebar]) main { padding-left: 240px; }
+
+@media (max-width: 768px) {
+  html[data-sidebar="collapsed"] main,
+  html[data-sidebar="expanded"] main,
+  html:not([data-sidebar]) main { padding-left: 0; }
 }
+
+.kanban-lift {
+  transform: scale(1.02) rotate(1deg);
+  box-shadow: var(--shadow-lg);
+}
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.toast-in { animation: toast-in 150ms cubic-bezier(0, 0, 0, 1); }
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-8px); }
+  75% { transform: translateX(8px); }
+}
+.shake { animation: shake 0.4s ease-in-out; }

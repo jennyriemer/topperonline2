@@ -1,36 +1,26 @@
 "use client";
 
-/**
- * Collapsible primary navigation sidebar.
- *
- * Expanded: 240px wide, shows wordmark, full nav labels, user cluster at bottom.
- * Collapsed: 60px wide, icons only, tooltips on hover.
- *
- * The width transition is 200ms ease-in-out.
- * Label opacity transitions 150ms with a 50ms delay so the width change
- * leads and the label crossfade follows.
- *
- * State is stored in localStorage and exposed via the `data-sidebar` attribute
- * on <html> so pages can respond (e.g. adjust their own max-width).
- *
- * Sizing uses inline style values from the DESIGN.md spec to avoid
- * confusion with Tailwind's spacing scale (e.g. design "44px" = `h-11`,
- * not `h-44` which is 176px in Tailwind).
- */
-
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState, useSyncExternalStore } from "react";
-import { Menu, X, Settings, ChevronRight, LogOut } from "lucide-react";
-import { NAV_ITEMS, type NavItem, type NavLeaf } from "@/lib/nav";
-import { cn, getInitials } from "@/lib/utils";
+import {
+  ChevronDown,
+  ChevronRight,
+  LogOut,
+  PanelLeft,
+  Search,
+  Settings,
+  Star,
+} from "lucide-react";
+import { MAINTENANCE, PIPELINES, PRIMARY_NAV, RECORDS, REPORTS, type NavItem } from "@/lib/nav";
+import { cn } from "@/lib/utils";
+import { actionQueue } from "@/lib/demo/crm";
 
 const STORAGE_KEY = "st-sidebar-collapsed";
-
-// localStorage as an external store: SSR snapshot is `false` (expanded),
-// client snapshot reads the persisted value — no hydration flag, no
-// setState-in-effect. Toggling dispatches an event to notify subscribers.
 const TOGGLE_EVENT = "st-sidebar-toggle";
+const GROUPS_KEY = "st-sidebar-groups";
+const SHOP_KEY = "st-shop";
+const FAV_KEY = "st-favorites";
 
 function subscribeCollapsed(cb: () => void) {
   window.addEventListener(TOGGLE_EVENT, cb);
@@ -40,28 +30,70 @@ function subscribeCollapsed(cb: () => void) {
     window.removeEventListener("storage", cb);
   };
 }
-
 const readCollapsed = () => localStorage.getItem(STORAGE_KEY) === "true";
-
 function writeCollapsed(value: boolean) {
   localStorage.setItem(STORAGE_KEY, String(value));
   window.dispatchEvent(new Event(TOGGLE_EVENT));
 }
 
-// Design spec values (px) — sourced from DESIGN.md
-const NAV_ITEM_HEIGHT = 44;
-const SUB_ITEM_HEIGHT = 36;
-const ICON_BUTTON = 36;
-const AVATAR_SIZE = 32;
-const EXPAND_BTN = 36;
-const SIDEBAR_PAD = 16;
-const SIGNAL_BAR = 3;
-const SIDEBAR_BORDER = 1;
+const SHOPS = [
+  { id: "suburban", label: "Colfax HQ" },
+  { id: "south", label: "South Centennial" },
+  { id: "both", label: "Both shops" },
+] as const;
 
-export function Sidebar() {
+const DEFAULT_FAVS = [
+  { label: "Tom Alvarez", href: "/clients/demo-c-01" },
+  { label: "Waiting payment", href: "/jobs?bucket=waiting_payment" },
+  { label: "Owen Hart", href: "/leads/demo-l-08" },
+];
+
+export function Sidebar({ onCommand }: { onCommand?: () => void }) {
   const pathname = usePathname();
   const collapsed = useSyncExternalStore(subscribeCollapsed, readCollapsed, () => false);
-  const setCollapsed = (fn: (c: boolean) => boolean) => writeCollapsed(fn(collapsed));
+  const [shopOpen, setShopOpen] = useState(false);
+  const [shop, setShop] = useState<(typeof SHOPS)[number]["id"]>(() => {
+    if (typeof window === "undefined") return "both";
+    return (localStorage.getItem(SHOP_KEY) as (typeof SHOPS)[number]["id"]) || "both";
+  });
+  const [groups, setGroups] = useState<{
+    pipelines: boolean;
+    records: boolean;
+    reports: boolean;
+    favorites: boolean;
+    maintenance: boolean;
+  }>(() => {
+    const fallback = { pipelines: true, records: true, reports: false, favorites: true, maintenance: false };
+    if (typeof window === "undefined") return fallback;
+    try {
+      const g = localStorage.getItem(GROUPS_KEY);
+      return g ? { ...fallback, ...JSON.parse(g) } : fallback;
+    } catch {
+      return fallback;
+    }
+  });
+  const [favs, setFavs] = useState<{ label: string; href: string }[]>(() => {
+    if (typeof window === "undefined") return DEFAULT_FAVS;
+    try {
+      const f = localStorage.getItem(FAV_KEY);
+      return f ? (JSON.parse(f) as { label: string; href: string }[]) : DEFAULT_FAVS;
+    } catch {
+      return DEFAULT_FAVS;
+    }
+  });
+  const queueCount = actionQueue().filter((a) => a.urgency === "now").length;
+
+  useEffect(() => {
+    document.documentElement.dataset.sidebar = collapsed ? "collapsed" : "expanded";
+  }, [collapsed]);
+
+  const toggleGroup = (key: keyof typeof groups) => {
+    setGroups((g) => {
+      const next = { ...g, [key]: !g[key] };
+      localStorage.setItem(GROUPS_KEY, JSON.stringify(next));
+      return next;
+    });
+  };
 
   const handleLogout = async () => {
     try {
@@ -72,170 +104,226 @@ export function Sidebar() {
     }
   };
 
-  // Reflect state onto <html> so pages can respond (external system sync —
-  // the legitimate use of an effect)
-  useEffect(() => {
-    document.documentElement.dataset.sidebar = collapsed ? "collapsed" : "expanded";
-  }, [collapsed]);
-
-  const width = collapsed ? 60 : 240;
+  const width = collapsed ? 56 : 240;
+  const shopLabel = SHOPS.find((s) => s.id === shop)?.label ?? "Both shops";
 
   return (
     <aside
-      className="fixed top-0 left-0 h-screen bg-paper z-40 flex flex-col overflow-hidden transition-[width] duration-200 ease-in-out"
+      className="fixed top-0 left-0 h-screen z-40 flex flex-col overflow-hidden"
       style={{
-        width: `${width}px`,
-        borderRight: `${SIDEBAR_BORDER}px solid var(--color-chalk)`,
+        width,
+        background: "var(--color-gray-25)",
+        borderRight: "1px solid var(--color-gray-150)",
+        transition: "width 150ms var(--ease-attio)",
       }}
       aria-label="Primary navigation"
     >
-      {/* Wordmark + toggle */}
-      <div
-        className={cn(
-          "flex items-center shrink-0",
-          collapsed ? "justify-center" : "gap-12"
-        )}
-        style={{
-          height: "64px",
-          paddingLeft: collapsed ? 0 : `${SIDEBAR_PAD}px`,
-          paddingRight: collapsed ? 0 : `${SIDEBAR_PAD}px`,
-        }}
-      >
+      <div className="relative shrink-0" style={{ height: 48, padding: collapsed ? "8px" : "8px 10px" }}>
         <button
           type="button"
-          onClick={() => setCollapsed((c) => !c)}
-          className="rounded-md flex items-center justify-center shrink-0 text-graphite hover:bg-fog active:bg-chalk transition-colors"
-          style={{ width: `${EXPAND_BTN}px`, height: `${EXPAND_BTN}px` }}
-          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          onClick={() => setShopOpen((o) => !o)}
+          className={cn("w-full flex items-center rounded-md hover:bg-gray-50", collapsed && "justify-center")}
+          style={{ height: 32, gap: 8, padding: collapsed ? 0 : "0 6px" }}
         >
-          {collapsed ? <Menu size={20} strokeWidth={2} /> : <X size={20} strokeWidth={2} />}
-        </button>
-
-        {!collapsed && (
           <span
-            className="truncate text-carbon"
+            className="inline-flex items-center justify-center shrink-0 overflow-hidden"
+            style={{ width: 24, height: 24, borderRadius: 6, background: "#0E4CA1" }}
+          >
+            <img src="/suburban-toppers-logo.svg" alt="" width={22} height={8} />
+          </span>
+          {!collapsed && (
+            <>
+              <span className="flex-1 text-left truncate" style={{ fontSize: 13, fontWeight: 600 }}>
+                Suburban Toppers
+              </span>
+              <ChevronDown size={14} className="text-gray-500" />
+            </>
+          )}
+        </button>
+        {!collapsed && (
+          <button
+            type="button"
+            onClick={() => writeCollapsed(true)}
+            className="absolute text-gray-500 hover:bg-gray-50 rounded-md"
+            style={{ right: 8, top: 10, width: 28, height: 28 }}
+            aria-label="Collapse sidebar"
+          >
+            <PanelLeft size={16} className="mx-auto" />
+          </button>
+        )}
+        {shopOpen && !collapsed && (
+          <div
+            className="absolute bg-white z-50"
             style={{
-              fontFamily: "var(--font-display)",
-              fontSize: "13px",
-              fontWeight: 600,
-              letterSpacing: "-0.02em",
-              opacity: 1,
-              transition: "opacity 150ms ease-in-out 50ms",
+              top: 44,
+              left: 8,
+              right: 8,
+              borderRadius: 12,
+              border: "1px solid var(--color-gray-150)",
+              boxShadow: "var(--shadow-md)",
+              padding: 6,
             }}
           >
-            Toppers Online
-          </span>
+            {SHOPS.map((s) => (
+              <button
+                key={s.id}
+                type="button"
+                onClick={() => {
+                  setShop(s.id);
+                  localStorage.setItem(SHOP_KEY, s.id);
+                  setShopOpen(false);
+                }}
+                className="w-full text-left rounded-md hover:bg-gray-50"
+                style={{
+                  padding: "8px 10px",
+                  fontSize: 13,
+                  fontWeight: shop === s.id ? 600 : 500,
+                  background: shop === s.id ? "var(--color-gray-50)" : "transparent",
+                  border: "none",
+                }}
+              >
+                {s.label}
+              </button>
+            ))}
+            <div style={{ height: 1, background: "var(--color-gray-150)", margin: "4px 0" }} />
+            <Link href="/settings" onClick={() => setShopOpen(false)} className="block rounded-md hover:bg-gray-50" style={{ padding: "8px 10px", fontSize: 13 }}>
+              Settings
+            </Link>
+            <button type="button" onClick={handleLogout} className="w-full text-left rounded-md hover:bg-gray-50" style={{ padding: "8px 10px", fontSize: 13, border: "none", background: "transparent" }}>
+              Sign out
+            </button>
+          </div>
         )}
       </div>
 
-      {/* Nav items */}
-      <nav
-        className="flex-1 overflow-y-auto min-h-0"
-        style={{
-          paddingLeft: `${SIDEBAR_PAD}px`,
-          paddingRight: `${SIDEBAR_PAD}px`,
-          marginTop: "8px",
-        }}
-        aria-label="Main"
-      >
-        <ul className="flex flex-col">
-          {NAV_ITEMS.map((item) => {
-            const hasChildren = !!item.children?.length;
-            if (hasChildren) {
-              return (
-                <ExpandableGroup
-                  key={item.label}
-                  item={item}
-                  pathname={pathname}
-                  collapsed={collapsed}
-                />
-              );
-            }
-            return (
-              <li key={item.label} className="mb-4 last:mb-0">
-                <LeafLink
-                  item={item}
-                  pathname={pathname}
-                  collapsed={collapsed}
-                />
-              </li>
-            );
-          })}
+      <div className="shrink-0" style={{ padding: collapsed ? "0 8px 8px" : "0 10px 8px" }}>
+        {collapsed ? (
+          <button
+            type="button"
+            onClick={() => writeCollapsed(false)}
+            className="w-full flex items-center justify-center rounded-md hover:bg-gray-50 text-gray-600"
+            style={{ height: 32 }}
+            aria-label="Expand sidebar"
+          >
+            <PanelLeft size={16} />
+          </button>
+        ) : (
+          <div className="flex" style={{ gap: 6 }}>
+            <button
+              type="button"
+              onClick={onCommand}
+              className="flex-1 flex items-center bg-white hover:border-gray-300"
+              style={{
+                height: 32,
+                padding: "0 8px",
+                gap: 8,
+                borderRadius: 8,
+                border: "1px solid var(--color-gray-150)",
+                fontSize: 13,
+                color: "var(--color-gray-600)",
+                boxShadow: "var(--shadow-xs)",
+              }}
+            >
+              <Search size={14} />
+              <span className="flex-1 text-left truncate">Quick actions</span>
+              <kbd style={{ fontSize: 10, background: "var(--color-gray-50)", border: "1px solid var(--color-gray-150)", borderRadius: 4, padding: "1px 5px" }}>⌘K</kbd>
+            </button>
+            <button
+              type="button"
+              onClick={onCommand}
+              className="flex items-center justify-center bg-white"
+              style={{ width: 32, height: 32, borderRadius: 8, border: "1px solid var(--color-gray-150)" }}
+              aria-label="Search"
+            >
+              <span className="text-gray-500" style={{ fontSize: 12, fontWeight: 600 }}>/</span>
+            </button>
+          </div>
+        )}
+      </div>
+
+      <nav className="flex-1 overflow-y-auto min-h-0" style={{ padding: collapsed ? "0 8px" : "0 8px 12px" }}>
+        <ul className="flex flex-col" style={{ gap: 2 }}>
+          {PRIMARY_NAV.map((item) => (
+            <li key={item.href + item.label}>
+              <Leaf
+                item={item}
+                pathname={pathname}
+                collapsed={collapsed}
+                badge={item.label === "Action queue" ? queueCount : undefined}
+              />
+            </li>
+          ))}
         </ul>
+
+        <Group
+          title="Pipelines"
+          open={groups.pipelines}
+          onToggle={() => toggleGroup("pipelines")}
+          collapsed={collapsed}
+        >
+          {PIPELINES.map((item) => (
+            <Leaf key={item.href} item={item} pathname={pathname} collapsed={collapsed} />
+          ))}
+        </Group>
+
+        <Group title="Records" open={groups.records} onToggle={() => toggleGroup("records")} collapsed={collapsed}>
+          {RECORDS.map((item) => (
+            <Leaf key={item.label} item={item} pathname={pathname} collapsed={collapsed} />
+          ))}
+        </Group>
+
+        <Group title="Reports" open={groups.reports} onToggle={() => toggleGroup("reports")} collapsed={collapsed}>
+          {REPORTS.map((r) => (
+            <SubLink key={r.href} href={r.href} label={r.label} pathname={pathname} collapsed={collapsed} />
+          ))}
+        </Group>
+
+        <Group title="Favorites" open={groups.favorites} onToggle={() => toggleGroup("favorites")} collapsed={collapsed}>
+          {favs.map((f) => (
+            <SubLink
+              key={f.href}
+              href={f.href}
+              label={f.label}
+              pathname={pathname}
+              collapsed={collapsed}
+              icon={<Star size={12} className="text-yellow-700" />}
+              onRemove={() => {
+                const next = favs.filter((x) => x.href !== f.href);
+                setFavs(next);
+                localStorage.setItem(FAV_KEY, JSON.stringify(next));
+              }}
+            />
+          ))}
+        </Group>
+
+        <Group title="Maintenance" open={groups.maintenance} onToggle={() => toggleGroup("maintenance")} collapsed={collapsed}>
+          {MAINTENANCE.map((r) => (
+            <SubLink key={r.href} href={r.href} label={r.label} pathname={pathname} collapsed={collapsed} />
+          ))}
+        </Group>
       </nav>
 
-      {/* Divider + user cluster */}
-      <div
-        className="shrink-0"
-        style={{
-          padding: collapsed
-            ? `${SIDEBAR_PAD}px 0 0 0`
-            : `${SIDEBAR_PAD}px ${SIDEBAR_PAD}px ${SIDEBAR_PAD}px ${SIDEBAR_PAD}px`,
-        }}
-      >
-        {!collapsed && (
-          <div
-            style={{
-              borderTop: "1px solid var(--color-chalk)",
-              marginBottom: "12px",
-            }}
-          />
-        )}
-
-        <div
-          className={cn("flex items-center", collapsed ? "justify-center" : "gap-12")}
-        >
-          {/* Avatar */}
-          <div
-            className="rounded-full bg-chalk flex items-center justify-center shrink-0 text-carbon"
-            style={{
-              width: `${AVATAR_SIZE}px`,
-              height: `${AVATAR_SIZE}px`,
-              fontFamily: "var(--font-display)",
-              fontSize: "13px",
-              fontWeight: 600,
-            }}
-            aria-hidden="true"
+      <div className="shrink-0" style={{ padding: collapsed ? 8 : "10px 10px 12px", borderTop: "1px solid var(--color-gray-150)" }}>
+        <div className={cn("flex items-center", collapsed ? "justify-center" : "")} style={{ gap: 8 }}>
+          <span
+            className="rounded-full inline-flex items-center justify-center shrink-0 font-medium"
+            style={{ width: 28, height: 28, background: "var(--color-brand-100)", color: "var(--color-brand-700)", fontSize: 11 }}
           >
-            {getInitials("Zack Vivas")}
-          </div>
-
+            ZV
+          </span>
           {!collapsed && (
-            <div
-              className="flex-1 min-w-0"
-              style={{ transition: "opacity 150ms ease-in-out 50ms" }}
-            >
-              <div className="truncate text-carbon" style={{ fontSize: "13px", fontWeight: 500 }}>
-                Zack Vivas
+            <>
+              <div className="flex-1 min-w-0">
+                <div className="truncate" style={{ fontSize: 13, fontWeight: 600 }}>Zack Vivas</div>
+                <div className="truncate text-gray-500" style={{ fontSize: 11 }}>{shopLabel} · Admin</div>
               </div>
-              <div className="truncate text-slate" style={{ fontSize: "12px" }}>
-                Admin
-              </div>
-            </div>
-          )}
-
-          {!collapsed && (
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={handleLogout}
-                className="rounded-md flex items-center justify-center text-graphite hover:bg-fog active:bg-chalk transition-colors shrink-0"
-                style={{ width: `${ICON_BUTTON}px`, height: `${ICON_BUTTON}px` }}
-                aria-label="Log out"
-                title="Log out"
-              >
-                <LogOut size={18} strokeWidth={2} />
-              </button>
-              <Link
-                href="/settings"
-                className="rounded-md flex items-center justify-center text-graphite hover:bg-fog active:bg-chalk transition-colors shrink-0"
-                style={{ width: `${ICON_BUTTON}px`, height: `${ICON_BUTTON}px` }}
-                aria-label="Settings"
-                title="Settings"
-              >
-                <Settings size={18} strokeWidth={2} />
+              <Link href="/settings" className="text-gray-500 hover:bg-gray-50 rounded-md" style={{ width: 28, height: 28, display: "grid", placeItems: "center" }} aria-label="Settings">
+                <Settings size={15} />
               </Link>
-            </div>
+              <button type="button" onClick={handleLogout} className="text-gray-500 hover:bg-gray-50 rounded-md" style={{ width: 28, height: 28, border: "none", background: "transparent" }} aria-label="Log out">
+                <LogOut size={15} />
+              </button>
+            </>
           )}
         </div>
       </div>
@@ -243,189 +331,162 @@ export function Sidebar() {
   );
 }
 
-function LeafLink({
+function Leaf({
   item,
   pathname,
   collapsed,
+  badge,
 }: {
   item: NavItem;
   pathname: string;
   collapsed: boolean;
+  badge?: number;
 }) {
   const Icon = item.icon;
-  const href = item.href!;
-  const active = pathname === href || pathname.startsWith(href + "/");
-
+  const active = pathname === item.href || pathname.startsWith(item.href + "/");
   return (
     <Link
-      href={href}
+      href={item.href}
       title={collapsed ? item.label : undefined}
       className={cn(
-        "relative flex items-center rounded-md transition-colors",
-        active ? "bg-fog text-carbon" : "text-carbon hover:bg-fog"
+        "relative flex items-center rounded-md",
+        active ? "bg-gray-100 text-ink" : "text-gray-700 hover:bg-gray-50"
       )}
       style={{
-        height: collapsed ? `${ICON_BUTTON}px` : `${NAV_ITEM_HEIGHT}px`,
-        width: collapsed ? `${ICON_BUTTON}px` : "100%",
-        margin: collapsed ? "0 auto" : undefined,
+        height: 32,
+        padding: collapsed ? 0 : "0 8px",
         justifyContent: collapsed ? "center" : undefined,
-        paddingLeft: collapsed ? 0 : "12px",
-        paddingRight: collapsed ? 0 : "12px",
-        gap: collapsed ? 0 : "12px",
-        fontSize: "14px",
+        gap: 8,
+        fontSize: 13,
         fontWeight: active ? 600 : 500,
       }}
     >
-      {active && (
+      {item.tile ? (
         <span
-          className="absolute bg-signal-orange rounded-r-sm"
-          style={{
-            left: 0,
-            top: "8px",
-            bottom: "8px",
-            width: `${SIGNAL_BAR}px`,
-          }}
-          aria-hidden="true"
-        />
-      )}
-      <Icon
-        size={20}
-        strokeWidth={2}
-        className={active ? "text-signal-orange" : "text-graphite"}
-        style={{ flexShrink: 0 }}
-      />
-      {!collapsed && (
-        <span
-          className="truncate"
-          style={{ transition: "opacity 150ms ease-in-out 50ms" }}
+          className="inline-flex items-center justify-center shrink-0"
+          style={{ width: 16, height: 16, borderRadius: 4, background: item.tile.bg, color: item.tile.fg }}
         >
-          {item.label}
+          <Icon size={11} strokeWidth={2.2} />
         </span>
+      ) : (
+        <Icon size={16} strokeWidth={1.75} className={active ? "text-ink" : "text-gray-500"} />
       )}
+      {!collapsed && <span className="truncate flex-1">{item.label}</span>}
+      {!collapsed && badge ? (
+        <span
+          className="inline-flex items-center justify-center"
+          style={{
+            minWidth: 18,
+            height: 18,
+            borderRadius: 999,
+            background: "var(--color-danger-bg)",
+            color: "var(--color-danger-fg)",
+            fontSize: 10,
+            fontWeight: 600,
+            padding: "0 5px",
+          }}
+        >
+          {badge}
+        </span>
+      ) : null}
     </Link>
   );
 }
 
-function ExpandableGroup({
-  item,
-  pathname,
+function Group({
+  title,
+  open,
+  onToggle,
   collapsed,
+  children,
 }: {
-  item: NavItem;
-  pathname: string;
+  title: string;
+  open: boolean;
+  onToggle: () => void;
   collapsed: boolean;
+  children: React.ReactNode;
 }) {
-  const Icon = item.icon;
-  const childActive = item.children!.some(
-    (c) => pathname === c.href || pathname.startsWith(c.href + "/")
-  );
-  // Expanded-mode disclosure state — must be unconditional (rules of hooks)
-  const [open, setOpen] = useState(childActive);
-
   if (collapsed) {
-    return (
-      <li className="mb-4 last:mb-0">
-        <Link
-          href={item.children![0].href}
-          title={item.label}
-          className={cn(
-            "relative flex items-center justify-center rounded-md transition-colors",
-            childActive ? "bg-fog" : "hover:bg-fog"
-          )}
-          style={{
-            width: `${ICON_BUTTON}px`,
-            height: `${ICON_BUTTON}px`,
-            margin: "0 auto",
-          }}
-        >
-          {childActive && (
-            <span
-              className="absolute bg-signal-orange rounded-r-sm"
-              style={{
-                left: 0,
-                top: "8px",
-                bottom: "8px",
-                width: `${SIGNAL_BAR}px`,
-              }}
-              aria-hidden="true"
-            />
-          )}
-          <Icon
-            size={20}
-            strokeWidth={2}
-            className={childActive ? "text-signal-orange" : "text-graphite"}
-          />
-        </Link>
-      </li>
-    );
+    return <div className="flex flex-col" style={{ gap: 2, marginTop: 8 }}>{children}</div>;
   }
-
-  // Expanded mode: collapsible group with sub-list
   return (
-    <li className="mb-4 last:mb-0">
+    <div style={{ marginTop: 14 }}>
       <button
         type="button"
-        onClick={() => setOpen((o) => !o)}
-        aria-expanded={open}
-        className={cn(
-          "flex items-center rounded-md transition-colors text-left",
-          childActive ? "bg-fog text-carbon" : "text-carbon hover:bg-fog"
-        )}
+        onClick={onToggle}
+        className="w-full flex items-center group"
         style={{
-          width: "100%",
-          height: `${NAV_ITEM_HEIGHT}px`,
-          paddingLeft: "12px",
-          paddingRight: "12px",
-          gap: "12px",
-          fontSize: "14px",
-          fontWeight: childActive ? 600 : 500,
+          height: 24,
+          padding: "0 8px",
+          fontSize: 11,
+          fontWeight: 500,
+          color: "var(--color-gray-400)",
+          background: "transparent",
+          border: "none",
+          textTransform: "none",
         }}
       >
-        <Icon
-          size={20}
-          strokeWidth={2}
-          className={childActive ? "text-signal-orange" : "text-graphite"}
-          style={{ flexShrink: 0 }}
-        />
-        <span className="flex-1 truncate">{item.label}</span>
+        <span className="flex-1 text-left">{title}</span>
         <ChevronRight
-          size={14}
-          strokeWidth={2}
-          className="text-graphite transition-transform"
-          style={{ transform: open ? "rotate(90deg)" : "rotate(0deg)", flexShrink: 0 }}
+          size={12}
+          className="opacity-0 group-hover:opacity-100"
+          style={{ transform: open ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 150ms var(--ease-attio)" }}
         />
       </button>
-      {open && (
-        <ul className="flex flex-col" style={{ marginTop: "4px", marginLeft: "32px" }}>
-          {item.children!.map((child, i) => (
-            <li key={child.href} className={i > 0 ? "mt-2" : ""}>
-              <SubItem child={child} pathname={pathname} />
-            </li>
-          ))}
-        </ul>
-      )}
-    </li>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateRows: open ? "1fr" : "0fr",
+          transition: "grid-template-rows 150ms var(--ease-attio)",
+        }}
+      >
+        <div className="overflow-hidden flex flex-col" style={{ gap: 1 }}>
+          {children}
+        </div>
+      </div>
+    </div>
   );
 }
 
-function SubItem({ child, pathname }: { child: NavLeaf; pathname: string }) {
-  const active = pathname === child.href;
+function SubLink({
+  href,
+  label,
+  pathname,
+  collapsed,
+  icon,
+  onRemove,
+}: {
+  href: string;
+  label: string;
+  pathname: string;
+  collapsed: boolean;
+  icon?: React.ReactNode;
+  onRemove?: () => void;
+}) {
+  const active = pathname === href || pathname.startsWith(href.split("?")[0] + "/") && !href.includes("?");
+  if (collapsed) return null;
   return (
-    <Link
-      href={child.href}
-      className={cn(
-        "flex items-center rounded-md transition-colors",
-        active ? "text-carbon" : "text-graphite hover:bg-fog hover:text-carbon"
+    <div className="relative group flex items-center">
+      <span aria-hidden style={{ width: 12, marginLeft: 14, borderLeft: "1px solid var(--color-gray-150)", alignSelf: "stretch" }} />
+      <Link
+        href={href}
+        className={cn("flex-1 flex items-center rounded-md truncate", active ? "text-ink bg-gray-50" : "text-gray-600 hover:bg-gray-50")}
+        style={{ height: 28, padding: "0 8px", fontSize: 13, gap: 6, fontWeight: active ? 600 : 500 }}
+      >
+        {icon}
+        <span className="truncate">{label}</span>
+      </Link>
+      {onRemove && (
+        <button
+          type="button"
+          onClick={onRemove}
+          className="opacity-0 group-hover:opacity-100 text-gray-400"
+          style={{ position: "absolute", right: 4, border: "none", background: "transparent", fontSize: 12 }}
+          aria-label={`Remove ${label}`}
+        >
+          ×
+        </button>
       )}
-      style={{
-        height: `${SUB_ITEM_HEIGHT}px`,
-        paddingLeft: "12px",
-        paddingRight: "12px",
-        fontSize: "13px",
-        fontWeight: active ? 500 : 400,
-      }}
-    >
-      {child.label}
-    </Link>
+    </div>
   );
 }

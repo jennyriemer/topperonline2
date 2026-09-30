@@ -173,9 +173,9 @@ export function DataTable<T>({
                         fontSize: "13px",
                         fontWeight: 500,
                         lineHeight: 1.2,
-                        color: "var(--color-slate)",
-                        textTransform: "uppercase",
-                        letterSpacing: "0.04em",
+                        color: "var(--color-gray-600)",
+                        textTransform: "none",
+                        letterSpacing: "0",
                         width: header.id === "_select" ? "40px" : header.getSize() || undefined,
                         whiteSpace: "nowrap",
                       }}

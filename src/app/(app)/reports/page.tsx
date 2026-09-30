@@ -35,7 +35,7 @@ export default function ReportsHubPage() {
           <Card hoverable padding={24}>
             <div className="flex items-start justify-between" style={{ gap: 16 }}>
               <div>
-                <div className="text-signal-orange" style={{ fontSize: 12, fontWeight: 600, letterSpacing: "0.04em", textTransform: "uppercase" }}>
+                <div className="text-brand-600" style={{ fontSize: 12, fontWeight: 600 }}>
                   Hero report
                 </div>
                 <h2 style={{ fontFamily: "var(--font-display)", fontSize: 22, fontWeight: 600, marginTop: 6 }}>

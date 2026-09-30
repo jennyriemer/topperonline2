@@ -93,7 +93,7 @@ export default function HistoricalReportPage() {
                   contentStyle={{ borderRadius: 8, border: "1px solid var(--color-chalk)", fontSize: 13 }}
                 />
                 <Area type="monotone" dataKey="left" name={a.label} stroke="var(--color-graphite)" fill="var(--color-chalk)" strokeWidth={2} />
-                <Area type="monotone" dataKey="right" name={b.label} stroke="var(--color-signal-orange)" fill="color-mix(in srgb, var(--color-signal-orange) 18%, transparent)" strokeWidth={2} />
+                <Area type="monotone" dataKey="right" name={b.label} stroke="var(--color-brand-600)" fill="color-mix(in srgb, var(--color-brand-600) 18%, transparent)" strokeWidth={2} />
               </AreaChart>
             </ResponsiveContainer>
           </div>
@@ -138,7 +138,7 @@ export default function HistoricalReportPage() {
                       style={{
                         height: 8,
                         width: `${Math.round((m.revenue / b.manufacturers[0].revenue) * 100)}%`,
-                        background: i === 0 ? "var(--color-signal-orange)" : "var(--color-graphite)",
+                        background: i === 0 ? "var(--color-brand-600)" : "var(--color-gray-400)",
                       }}
                     />
                   </div>

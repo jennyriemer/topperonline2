@@ -14,9 +14,9 @@
 
 import { Suspense, useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Plus, Download, Filter, Users } from "lucide-react";
+import { ChevronDown, Download, Filter, Phone, Plus, Users } from "lucide-react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Button, SearchInput, DataTable, PageHeader } from "@/components/ui";
+import { Avatar, Button, SearchInput, DataTable, PageHeader, StatusBadge } from "@/components/ui";
 import { ClientDrawer } from "@/components/clients/ClientDrawer";
 import type { ClientListRow } from "@/lib/data/clients";
 import { textColumn, dateColumn, currencyColumn } from "@/lib/columns";
@@ -31,7 +31,6 @@ import {
   jobsForClient,
   phoneMatches,
 } from "@/lib/demo/crm";
-import { SampleBadge } from "@/components/demo/SampleBadge";
 
 const FILTERS: { key: "all" | "commercial" | "residential"; label: string }[] = [
   { key: "all", label: "All" },
@@ -93,8 +92,8 @@ function ClientsTableInner({ initialClients, initialTotalMatching }: ClientsTabl
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"all" | "commercial" | "residential">("all");
   const [clients, setClients] = useState(initialClients);
-  const [totalMatching, setTotalMatching] = useState(initialTotalMatching);
-  const [loading, setLoading] = useState(false);
+  const [, setTotalMatching] = useState(initialTotalMatching);
+  const [, setLoading] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const visibleDemo = useMemo(() => {
     const q = search.trim();
@@ -160,13 +159,9 @@ function ClientsTableInner({ initialClients, initialTotalMatching }: ClientsTabl
       header: "Company Name",
       sortKey: (c) => c.companyName ?? `${c.firstName} ${c.lastName}`,
       render: (c) => (
-        <span style={{ fontWeight: 500, color: "var(--color-carbon)" }} className="inline-flex items-center" >
+        <span className="inline-flex items-center" style={{ fontWeight: 600, gap: 8 }}>
+          <Avatar name={c.companyName ?? `${c.firstName} ${c.lastName}`} size={20} />
           {c.companyName ?? `${c.firstName} ${c.lastName}`}
-          {c.id.startsWith("demo-") && (
-            <span style={{ marginLeft: 8 }}>
-              <SampleBadge />
-            </span>
-          )}
         </span>
       ),
     }),
@@ -174,7 +169,12 @@ function ClientsTableInner({ initialClients, initialTotalMatching }: ClientsTabl
     textColumn<ClientListRow>({
       key: "phone",
       header: "Phone",
-      render: (c) => (c.phone ? formatPhone(c.phone) : "—"),
+      render: (c) => (
+        <span className="font-mono inline-flex items-center" style={{ fontSize: 12, gap: 6, color: "var(--color-gray-700)" }}>
+          <Phone size={12} className="text-gray-400" />
+          {c.phone ? formatPhone(c.phone) : "—"}
+        </span>
+      ),
     }),
     currencyColumn<ClientListRow>({ key: "lastInvoiceAmount", header: "Last Invoice" }),
     dateColumn<ClientListRow>({
@@ -192,25 +192,7 @@ function ClientsTableInner({ initialClients, initialTotalMatching }: ClientsTabl
       cell: ({ row }) => {
         const c = row.original;
         const variant = statusToVariant(c.lastInvoiceStatusVariant);
-        return (
-          <span
-            className="rounded-full inline-flex items-center"
-            style={{
-              gap: "6px",
-              fontSize: "12px",
-              fontWeight: 500,
-              padding: "3px 10px",
-              background: `color-mix(in srgb, var(--color-status-${variant}) 12%, transparent)`,
-              color: `var(--color-status-${variant})`,
-            }}
-          >
-            <span
-              className="rounded-full"
-              style={{ width: "6px", height: "6px", background: `var(--color-status-${variant})` }}
-            />
-            {c.lastInvoiceStatusLabel}
-          </span>
-        );
+        return <StatusBadge variant={variant}>{c.lastInvoiceStatusLabel}</StatusBadge>;
       },
     },
   ];
@@ -218,82 +200,58 @@ function ClientsTableInner({ initialClients, initialTotalMatching }: ClientsTabl
   return (
     <div>
       <PageHeader
-        breadcrumbs={[{ label: "Suburban Toppers" }, { label: "Clients" }]}
+        breadcrumbs={[{ label: "Records" }, { label: "Clients" }]}
         title="Clients"
         actions={
           <>
-            <Button variant="outlined" leadingIcon={<Download size={16} strokeWidth={2} />}>
+            <Button variant="outlined" leadingIcon={<Download size={14} />}>
               Export
             </Button>
-            <Button variant="filled" leadingIcon={<Plus size={16} strokeWidth={2} />}>
-              New Client
+            <Button variant="filled" leadingIcon={<Plus size={14} />}>
+              New client
             </Button>
           </>
         }
       />
 
-      <div style={{ padding: "0 32px 32px 32px" }}>
-        <div className="bg-paper rounded-md overflow-hidden" style={{ boxShadow: "var(--shadow-card)" }}>
-          {/* Header bar */}
-          <div
-            className="flex items-center justify-between"
-            style={{ padding: "20px 24px", borderBottom: "1px solid var(--color-chalk)", gap: "16px", flexWrap: "wrap" }}
-          >
-            <div className="flex items-center min-w-0" style={{ gap: "16px" }}>
-              <h2
-                className="text-carbon"
-                style={{ fontFamily: "var(--font-display)", fontSize: "16px", fontWeight: 600, lineHeight: 1.2 }}
-              >
-                All Clients
-                <span className="text-slate" style={{ fontSize: "13px", fontWeight: 400, marginLeft: "8px" }}>
-                  ({(totalMatching + visibleDemo.length).toLocaleString()}
-                  {loading ? " · searching…" : ""}
-                  {visibleDemo.length ? ` · ${visibleDemo.length} sample` : ""})
-                </span>
-              </h2>
+      <div style={{ padding: "16px 24px 32px" }}>
+        <div className="bg-white overflow-hidden" style={{ borderRadius: 12, border: "1px solid var(--color-gray-150)" }}>
+          <div className="flex items-center justify-between flex-wrap" style={{ padding: "10px 16px", borderBottom: "1px solid var(--color-gray-150)", gap: 12 }}>
+            <div className="flex items-center" style={{ gap: 8 }}>
+              <button type="button" className="inline-flex items-center rounded-md" style={{ height: 28, padding: "0 10px", gap: 6, fontSize: 13, fontWeight: 500, border: "1px solid var(--color-gray-150)", background: "white" }}>
+                All clients <ChevronDown size={12} />
+              </button>
             </div>
-            <div className="flex items-center" style={{ gap: "8px" }}>
-              <SearchInput
-                placeholder="Phone first — try 303-903"
-                value={search}
-                onChange={setSearch}
-                style={{ width: "280px" }}
-              />
+            <div className="flex items-center" style={{ gap: 8 }}>
+              <Button size="sm" variant="ghost">View settings</Button>
+              <Button size="sm" variant="outlined" leadingIcon={<Download size={12} />}>Import / Export</Button>
+              <SearchInput placeholder="Phone first — try 303-903" value={search} onChange={setSearch} style={{ width: 240 }} />
             </div>
           </div>
 
-          {/* Filter pills */}
-          <div
-            className="flex items-center"
-            style={{ padding: "12px 24px", borderBottom: "1px solid var(--color-chalk)", gap: "8px" }}
-          >
-            <Filter size={14} strokeWidth={2} className="text-slate" />
+          <div className="flex items-center flex-wrap" style={{ padding: "10px 16px", borderBottom: "1px solid var(--color-gray-150)", gap: 8 }}>
+            <Button size="sm" variant="ghost" leadingIcon={<Filter size={13} />}>Filter</Button>
             {FILTERS.map((f) => (
               <button
                 key={f.key}
                 type="button"
                 onClick={() => setFilter(f.key)}
-                className="rounded-xl transition-colors"
+                className="rounded-md"
                 style={{
-                  height: "28px", padding: "0 12px", fontSize: "13px", fontWeight: 500,
-                  background: filter === f.key ? "var(--color-carbon)" : "var(--color-fog)",
-                  color: filter === f.key ? "var(--color-paper)" : "var(--color-graphite)",
-                  border: filter === f.key ? "1px solid var(--color-carbon)" : "1px solid transparent",
-                  cursor: "pointer",
+                  height: 26,
+                  padding: "0 10px",
+                  fontSize: 12,
+                  fontWeight: 500,
+                  background: filter === f.key ? "var(--color-brand-100)" : "var(--color-gray-50)",
+                  color: filter === f.key ? "var(--color-brand-700)" : "var(--color-gray-700)",
+                  border: "none",
                 }}
               >
                 {f.label}
               </button>
             ))}
-            {totalMatching > clients.length && (
-              <span className="text-slate" style={{ fontSize: "12px", marginLeft: "8px" }}>
-                Showing {clients.length.toLocaleString()} of {totalMatching.toLocaleString()} — refine your search to
-                narrow down.
-              </span>
-            )}
           </div>
 
-          {/* Table */}
           <DataTable
             columns={columns}
             data={merged}
@@ -303,6 +261,17 @@ function ClientsTableInner({ initialClients, initialTotalMatching }: ClientsTabl
             emptyTitle="No clients found"
             emptyDescription="Try a phone fragment like 303-903, or a last name."
           />
+
+          <div
+            className="flex items-center text-gray-600"
+            style={{ padding: "10px 16px", borderTop: "1px solid var(--color-gray-150)", fontSize: 12, gap: 24 }}
+          >
+            <span>{merged.length.toLocaleString()} count</span>
+            <span className="tabular">
+              ${merged.reduce((s, c) => s + (c.totalSpend ?? 0), 0).toLocaleString()} sum
+            </span>
+            <span className="text-gray-400">+ Add calculation</span>
+          </div>
         </div>
       </div>
 

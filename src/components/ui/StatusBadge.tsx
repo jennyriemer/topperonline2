@@ -1,63 +1,23 @@
-/**
- * Status Badge — pill-shaped inline status indicator.
- *
- * Design rules (from DESIGN.md):
- *   - Pill shape (20px radius), Inter 12px weight 500
- *   - Small filled circle dot (6px) to the left of text
- *   - Background at 12% opacity of the status color
- *   - Text and dot at full status color
- *   - No border
- *
- * The 5 permitted status colors (per spec):
- *   - Green  (#22c55e): Confirmed, Paid, In Stock, Active
- *   - Amber  (#f59e0b): Pending, Awaiting, Partial
- *   - Red    (#ef4444): Overdue, Cancelled, Failed
- *   - Blue   (#3b82f6): Sent, In Transit, Scheduled
- *   - Purple (#8b5cf6): AI Active, Auto-Sent, Lead Engaged
- */
-
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
-export type StatusVariant = "green" | "amber" | "red" | "blue" | "purple";
+export type StatusVariant = "green" | "amber" | "red" | "blue" | "purple" | "neutral" | "yellow";
 
 interface StatusBadgeProps {
-  /** Variant color (defaults to "green") */
   variant?: StatusVariant;
-  /** Optional leading dot (defaults to true) */
   withDot?: boolean;
-  /** Badge content (the label) */
   children: ReactNode;
-  /** Optional extra className for layout */
   className?: string;
 }
 
-// Background at 12% opacity of the status color.
-// We use `color-mix` so this works with the design tokens and stays
-// consistent if the colors ever change.
-const VARIANT_BG: Record<StatusVariant, string> = {
-  green: "color-mix(in srgb, var(--color-status-green) 12%, transparent)",
-  amber: "color-mix(in srgb, var(--color-status-amber) 12%, transparent)",
-  red: "color-mix(in srgb, var(--color-status-red) 12%, transparent)",
-  blue: "color-mix(in srgb, var(--color-status-blue) 12%, transparent)",
-  purple: "color-mix(in srgb, var(--color-status-purple) 12%, transparent)",
-};
-
-const VARIANT_TEXT: Record<StatusVariant, string> = {
-  green: "text-status-green",
-  amber: "text-status-amber",
-  red: "text-status-red",
-  blue: "text-status-blue",
-  purple: "text-status-purple",
-};
-
-// Map variant -> CSS variable name (for the dot color)
-const VARIANT_DOT_VAR: Record<StatusVariant, string> = {
-  green: "var(--color-status-green)",
-  amber: "var(--color-status-amber)",
-  red: "var(--color-status-red)",
-  blue: "var(--color-status-blue)",
-  purple: "var(--color-status-purple)",
+const STYLES: Record<StatusVariant, { bg: string; fg: string; dot: string }> = {
+  green: { bg: "var(--color-success-bg)", fg: "var(--color-success-fg)", dot: "var(--color-success)" },
+  amber: { bg: "var(--color-warning-bg)", fg: "var(--color-warning-fg)", dot: "var(--color-warning)" },
+  yellow: { bg: "var(--color-yellow-100)", fg: "var(--color-yellow-700)", dot: "var(--color-yellow-400)" },
+  red: { bg: "var(--color-danger-bg)", fg: "var(--color-danger-fg)", dot: "var(--color-danger)" },
+  blue: { bg: "var(--color-info-bg)", fg: "var(--color-info-fg)", dot: "var(--color-brand-600)" },
+  purple: { bg: "var(--color-purple-bg)", fg: "var(--color-purple-fg)", dot: "var(--color-purple)" },
+  neutral: { bg: "var(--color-gray-100)", fg: "var(--color-gray-700)", dot: "var(--color-gray-500)" },
 };
 
 export function StatusBadge({
@@ -66,19 +26,17 @@ export function StatusBadge({
   children,
   className,
 }: StatusBadgeProps) {
+  const s = STYLES[variant] ?? STYLES.neutral;
   return (
     <span
-      className={cn(
-        "inline-flex items-center font-medium",
-        VARIANT_TEXT[variant],
-        className
-      )}
+      className={cn("inline-flex items-center font-medium", className)}
       style={{
         height: "22px",
-        paddingLeft: withDot ? "10px" : "12px",
-        paddingRight: "12px",
-        borderRadius: "20px",
-        background: VARIANT_BG[variant],
+        paddingLeft: withDot ? "8px" : "8px",
+        paddingRight: "8px",
+        borderRadius: "6px",
+        background: s.bg,
+        color: s.fg,
         fontSize: "12px",
         lineHeight: 1,
         gap: "6px",
@@ -87,12 +45,12 @@ export function StatusBadge({
     >
       {withDot && (
         <span
-          aria-hidden="true"
+          aria-hidden
           style={{
-            width: "6px",
-            height: "6px",
+            width: 6,
+            height: 6,
             borderRadius: "50%",
-            background: VARIANT_DOT_VAR[variant],
+            background: s.dot,
             flexShrink: 0,
           }}
         />

@@ -2,11 +2,12 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Car, Filter, Mail, Plus, Sparkles } from "lucide-react";
-import { PageHeader, Button } from "@/components/ui";
-import { FunnelCard } from "@/components/charts/FunnelCard";
+import { Car, Filter, Mail, MessageSquare, Plus } from "lucide-react";
+import { PageHeader, Button, Avatar } from "@/components/ui";
 import { TrafficLightDot } from "@/components/ui/TrafficLight";
-import { SampleBanner, SampleBadge } from "@/components/demo/SampleBadge";
+import { SampleBanner } from "@/components/demo/SampleBadge";
+import { DndKanban, KanbanCardShell } from "@/components/kanban/DndKanban";
+import { useToast } from "@/components/layout/Toast";
 import { formatCurrency } from "@/lib/utils";
 import {
   DEMO_LEADS,
@@ -22,10 +23,28 @@ import {
   type LeadStage,
 } from "@/lib/demo/crm";
 
+const STAGE_DOT: Record<LeadStage, string> = {
+  new_lead: "#8F99A8",
+  contacted: "#0E4CA1",
+  conversation: "#9B69FF",
+  sale_pending: "#F5B900",
+  in_order: "#0FC27B",
+};
+
+const SOURCE_PILL: Record<LeadSource, { bg: string; fg: string }> = {
+  website: { bg: "var(--color-info-bg)", fg: "var(--color-info-fg)" },
+  phone_call: { bg: "var(--color-success-bg)", fg: "var(--color-success-fg)" },
+  walk_in: { bg: "var(--color-purple-bg)", fg: "var(--color-purple-fg)" },
+  referral: { bg: "var(--color-yellow-100)", fg: "var(--color-yellow-700)" },
+  google_ads: { bg: "var(--color-pink-bg)", fg: "var(--color-pink-fg)" },
+  facebook: { bg: "var(--color-teal-bg)", fg: "var(--color-teal-fg)" },
+};
+
 export default function LeadsPage() {
   const [leads, setLeads] = useState<DemoLead[]>(DEMO_LEADS);
   const [sourceFilter, setSourceFilter] = useState<LeadSource | "all">("all");
   const [search, setSearch] = useState("");
+  const { push } = useToast();
 
   useEffect(() => {
     fetch("/api/leads")
@@ -42,9 +61,7 @@ export default function LeadsPage() {
           });
         }
       })
-      .catch(() => {
-        /* demo leads are enough */
-      });
+      .catch(() => {});
   }, []);
 
   const filtered = useMemo(() => {
@@ -63,8 +80,11 @@ export default function LeadsPage() {
     return map;
   }, [filtered]);
 
-  const move = (id: string, stage: LeadStage) => {
-    setLeads((prev) => prev.map((l) => (l.id === id ? { ...l, stage, lastContactAt: new Date().toISOString(), daysInStage: 0, traffic: "green" } : l)));
+  const move = (id: string, stage: LeadStage, undoable = true) => {
+    const prev = leads.find((l) => l.id === id);
+    setLeads((list) =>
+      list.map((l) => (l.id === id ? { ...l, stage, lastContactAt: new Date().toISOString(), daysInStage: 0, traffic: "green" } : l))
+    );
     if (!id.startsWith("demo-")) {
       fetch(`/api/leads/${encodeURIComponent(id)}`, {
         method: "PATCH",
@@ -72,73 +92,47 @@ export default function LeadsPage() {
         body: JSON.stringify({ stage }),
       }).catch(() => {});
     }
+    if (undoable && prev) {
+      push(`Moved ${prev.firstName} ${prev.lastName} to ${LEAD_STAGE_LABELS[stage]}`, () => move(id, prev.stage, false));
+    }
   };
+
+  const columns = LEAD_STAGES.map((stage) => {
+    const items = byStage.get(stage) ?? [];
+    return {
+      id: stage,
+      title: LEAD_STAGE_LABELS[stage],
+      dot: STAGE_DOT[stage],
+      items,
+      sum: items.reduce((s, l) => s + l.estimatedValue, 0),
+    };
+  });
 
   return (
     <div>
       <PageHeader
-        breadcrumbs={[{ label: "Suburban Toppers" }, { label: "Leads & Outreach" }]}
+        breadcrumbs={[{ label: "Pipelines" }, { label: "Leads & Outreach" }]}
         title="Leads pipeline"
-        subtitle={`New → Contacted → Conversation → Sale Pending → In Order. Traffic lights: green under ${TRAFFIC_YELLOW_DAYS} days, yellow ${TRAFFIC_YELLOW_DAYS}–${TRAFFIC_RED_DAYS - 1}, red at ${TRAFFIC_RED_DAYS}+. Staff nudge after ${NUDGE_AFTER_DAYS} quiet days.`}
+        subtitle={`New → Contacted → Conversation → Sale pending → In order. Green under ${TRAFFIC_YELLOW_DAYS}d, yellow ${TRAFFIC_YELLOW_DAYS}–${TRAFFIC_RED_DAYS - 1}, red at ${TRAFFIC_RED_DAYS}+. Nudge after ${NUDGE_AFTER_DAYS} quiet days.`}
         actions={
           <Link href="/leads/demo-l-01">
-            <Button variant="filled" leadingIcon={<Plus size={16} />}>
+            <Button variant="filled" leadingIcon={<Plus size={14} />}>
               Open a sample lead
             </Button>
           </Link>
         }
       />
 
-      <div style={{ padding: "0 32px 40px 32px" }}>
+      <div style={{ padding: "20px 24px 40px" }}>
         <SampleBanner>
-          “AI Contacted” is gone as a column. Website intake email is activity at New Lead, signed as an
-          AI agent on behalf of Suburban Toppers. Staff still send the human follow-up.
+          “AI Contacted” is gone as a column. Website intake email is activity at New lead, signed as an AI agent on behalf of Suburban Toppers.
         </SampleBanner>
 
-        <div
-          className="grid bg-paper rounded-md"
-          style={{
-            gridTemplateColumns: "repeat(5, 1fr)",
-            marginBottom: "16px",
-            boxShadow: "var(--shadow-card)",
-            overflow: "hidden",
-          }}
-        >
-          {LEAD_STAGES.map((stage, i) => {
-            const list = byStage.get(stage) ?? [];
-            const value = list.reduce((s, l) => s + l.estimatedValue, 0);
-            return (
-              <div
-                key={stage}
-                style={{
-                  padding: "16px 18px",
-                  borderRight: i < 4 ? "1px solid var(--color-chalk)" : undefined,
-                }}
-              >
-                <div className="text-slate" style={{ fontSize: "11px", fontWeight: 600, letterSpacing: "0.04em", textTransform: "uppercase" }}>
-                  {LEAD_STAGE_LABELS[stage]}
-                </div>
-                <div style={{ fontFamily: "var(--font-display)", fontSize: "22px", fontWeight: 600, marginTop: "4px" }}>
-                  {list.length}
-                </div>
-                <div className="text-slate" style={{ fontSize: "13px" }}>
-                  {formatCurrency(value)}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        <div
-          className="flex items-center bg-paper rounded-md flex-wrap"
-          style={{ padding: "12px 16px", marginBottom: "16px", boxShadow: "var(--shadow-card)", gap: "8px" }}
-        >
-          <span className="text-slate flex items-center" style={{ gap: "6px", fontSize: "13px", fontWeight: 500, paddingRight: "8px", borderRight: "1px solid var(--color-chalk)" }}>
-            <Filter size={14} /> Source
+        <div className="flex items-center flex-wrap bg-white" style={{ padding: 10, marginBottom: 16, borderRadius: 12, border: "1px solid var(--color-gray-150)", gap: 8 }}>
+          <span className="text-gray-500 flex items-center" style={{ gap: 6, fontSize: 13 }}>
+            <Filter size={14} /> Where source is
           </span>
-          <Pill active={sourceFilter === "all"} onClick={() => setSourceFilter("all")}>
-            All
-          </Pill>
+          <Pill active={sourceFilter === "all"} onClick={() => setSourceFilter("all")}>All</Pill>
           {(Object.keys(LEAD_SOURCE_LABEL) as LeadSource[]).map((src) => (
             <Pill key={src} active={sourceFilter === src} onClick={() => setSourceFilter(src)}>
               {LEAD_SOURCE_LABEL[src]}
@@ -149,111 +143,68 @@ export default function LeadsPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search leads…"
-            className="rounded-md"
-            style={{
-              height: "32px",
-              width: "220px",
-              padding: "0 12px",
-              border: "1px solid var(--color-chalk)",
-              fontSize: "13px",
-              outline: "none",
-            }}
+            className="rounded-lg"
+            style={{ height: 32, width: 220, padding: "0 12px", border: "1px solid var(--color-gray-150)", fontSize: 13, outline: "none" }}
           />
         </div>
 
-        <div
-          style={{
-            overflowX: "auto",
-            marginLeft: "-32px",
-            marginRight: "-32px",
-            padding: "0 32px 8px",
-            marginBottom: "24px",
-          }}
-        >
-          <div className="grid" style={{ gridTemplateColumns: "repeat(5, 280px)", gap: "16px" }}>
-            {LEAD_STAGES.map((stage) => (
-              <div key={stage} className="bg-paper rounded-md" style={{ boxShadow: "var(--shadow-card)", minHeight: "240px" }}>
-                <div className="flex items-center justify-between" style={{ padding: "14px 16px", borderBottom: "1px solid var(--color-chalk)" }}>
-                  <span style={{ fontSize: "13px", fontWeight: 600 }}>{LEAD_STAGE_LABELS[stage]}</span>
-                  <span className="text-graphite" style={{ fontSize: "12px", fontWeight: 600 }}>
-                    {(byStage.get(stage) ?? []).length}
-                  </span>
-                </div>
-                <div className="flex flex-col" style={{ gap: "8px", padding: "12px" }}>
-                  {(byStage.get(stage) ?? []).map((lead) => (
-                    <LeadCard key={lead.id} lead={lead} onMove={move} />
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <FunnelCard
-          title="Lead pipeline"
-          subtitle={`${filtered.length} leads in view`}
-          stages={LEAD_STAGES.map((s) => ({
-            label: LEAD_STAGE_LABELS[s],
-            count: (byStage.get(s) ?? []).length,
-            href: `/leads?stage=${s}`,
-          }))}
+        <DndKanban
+          columns={columns}
+          onMove={(id, col) => move(id, col as LeadStage)}
+          renderCard={(lead) => <LeadCard lead={lead} />}
         />
       </div>
     </div>
   );
 }
 
-function LeadCard({ lead, onMove }: { lead: DemoLead; onMove: (id: string, stage: LeadStage) => void }) {
-  const next = LEAD_STAGES[LEAD_STAGES.indexOf(lead.stage) + 1];
+function LeadCard({ lead }: { lead: DemoLead }) {
+  const pill = SOURCE_PILL[lead.source];
   return (
-    <div className="rounded-md" style={{ padding: "12px", background: "var(--color-fog)" }}>
-      <div className="flex items-start justify-between" style={{ gap: "8px" }}>
-        <Link href={`/leads/${lead.id}`} className="text-carbon hover:underline" style={{ fontSize: "13px", fontWeight: 600 }}>
+    <KanbanCardShell>
+      <div className="flex items-start justify-between" style={{ gap: 8 }}>
+        <Link href={`/leads/${lead.id}`} className="hover:underline" style={{ fontSize: 14, fontWeight: 600 }}>
           {lead.firstName} {lead.lastName}
         </Link>
         <TrafficLightDot value={lead.traffic} />
       </div>
-      <div className="flex items-center text-slate" style={{ gap: "4px", marginTop: "4px", fontSize: "11px" }}>
-        <Car size={11} /> {lead.vehicle}
-        {lead.bedSize ? ` · ${lead.bedSize}` : ""}
-      </div>
-      <div className="text-graphite truncate" style={{ fontSize: "11px", marginTop: "2px" }}>
-        {lead.interest}
-      </div>
-      <div className="flex items-center justify-between" style={{ marginTop: "8px" }}>
-        <span
-          className="rounded-md text-graphite"
-          style={{ fontSize: "10px", fontWeight: 600, padding: "2px 6px", background: "var(--color-chalk)", letterSpacing: "0.04em", textTransform: "uppercase" }}
-        >
+      <Row icon={<Car size={14} />}>
+        {lead.vehicle}{lead.bedSize ? ` · ${lead.bedSize}` : ""}
+      </Row>
+      <Row>{lead.interest}</Row>
+      <div className="flex items-center justify-between" style={{ marginTop: 8 }}>
+        <span style={{ fontSize: 12, fontWeight: 500, padding: "2px 8px", borderRadius: 6, background: pill.bg, color: pill.fg }}>
           {LEAD_SOURCE_LABEL[lead.source]}
         </span>
-        <span className="text-carbon" style={{ fontSize: "12px", fontWeight: 600 }}>
-          {formatCurrency(lead.estimatedValue)}
+        <span className="tabular" style={{ fontSize: 13, fontWeight: 600 }}>{formatCurrency(lead.estimatedValue)}</span>
+      </div>
+      <div className="flex items-center" style={{ marginTop: 10, gap: 8 }}>
+        <Avatar name={`${lead.firstName} ${lead.lastName}`} size={20} />
+        {lead.intakeEmail && lead.stage === "new_lead" && (
+          <span className="inline-flex items-center text-gray-500" style={{ fontSize: 11, gap: 4 }}>
+            <Mail size={12} /> Intake sent
+          </span>
+        )}
+        <span className="ml-auto inline-flex items-center text-gray-400" style={{ fontSize: 11, gap: 4 }}>
+          <MessageSquare size={12} />
+          <span
+            style={{
+              color: lead.traffic === "red" ? "var(--color-danger-fg)" : lead.traffic === "yellow" ? "var(--color-warning-fg)" : "var(--color-gray-500)",
+            }}
+          >
+            {lead.daysInStage}d
+          </span>
         </span>
       </div>
-      <div className="flex items-center flex-wrap" style={{ gap: "6px", marginTop: "8px" }}>
-        {lead.intakeEmail && lead.stage === "new_lead" && (
-          <span className="inline-flex items-center text-signal-orange" style={{ fontSize: "10px", fontWeight: 600, gap: "3px" }}>
-            <Mail size={10} /> AI intake sent
-          </span>
-        )}
-        {lead.nudge && (
-          <span className="inline-flex items-center text-status-amber" style={{ fontSize: "10px", fontWeight: 600, gap: "3px" }}>
-            <Sparkles size={10} /> Nudge
-          </span>
-        )}
-        {lead.id.startsWith("demo-") && <SampleBadge />}
-      </div>
-      {next && (
-        <button
-          type="button"
-          onClick={() => onMove(lead.id, next)}
-          className="text-signal-orange"
-          style={{ marginTop: "8px", fontSize: "11px", fontWeight: 600, background: "none", border: "none", padding: 0 }}
-        >
-          Move to {LEAD_STAGE_LABELS[next]} →
-        </button>
-      )}
+    </KanbanCardShell>
+  );
+}
+
+function Row({ children, icon }: { children: React.ReactNode; icon?: React.ReactNode }) {
+  return (
+    <div className="flex items-center text-gray-600" style={{ gap: 6, marginTop: 6, fontSize: 12 }}>
+      {icon && <span className="text-gray-400">{icon}</span>}
+      <span className="truncate">{children}</span>
     </div>
   );
 }
@@ -263,14 +214,14 @@ function Pill({ active, onClick, children }: { active: boolean; onClick: () => v
     <button
       type="button"
       onClick={onClick}
-      className="rounded-xl"
+      className="rounded-md"
       style={{
-        height: "28px",
-        padding: "0 12px",
-        fontSize: "13px",
+        height: 26,
+        padding: "0 10px",
+        fontSize: 12,
         fontWeight: 500,
-        background: active ? "var(--color-carbon)" : "var(--color-fog)",
-        color: active ? "var(--color-paper)" : "var(--color-graphite)",
+        background: active ? "var(--color-brand-100)" : "var(--color-gray-50)",
+        color: active ? "var(--color-brand-700)" : "var(--color-gray-700)",
         border: "none",
       }}
     >
@@ -283,12 +234,11 @@ function adaptApiLead(raw: Record<string, unknown>): DemoLead | null {
   const id = String(raw.id ?? "");
   const stage = LEGACY_LEAD_STAGE_MAP[String(raw.stage ?? "new_lead")] ?? "new_lead";
   const first = String(raw.firstName ?? "");
-  const last = String(raw.lastName ?? "");
   if (!id || !first) return null;
   return {
     id,
     firstName: first,
-    lastName: last,
+    lastName: String(raw.lastName ?? ""),
     phone: String(raw.phone ?? ""),
     email: String(raw.email ?? ""),
     source: (raw.source as LeadSource) || "website",

@@ -116,7 +116,7 @@ export function Tabs({ tabs, paramName = "tab", className }: TabsProps) {
               {isActive && (
                 <span
                   aria-hidden="true"
-                  className="bg-signal-orange"
+                  className="bg-brand-600"
                   style={{
                     position: "absolute",
                     left: 0,

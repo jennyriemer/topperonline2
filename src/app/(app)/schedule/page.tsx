@@ -84,8 +84,8 @@ function ScheduleInner() {
                 fontSize: "13px",
                 fontWeight: 500,
                 border: "none",
-                background: location === loc ? "var(--color-carbon)" : "var(--color-paper)",
-                color: location === loc ? "var(--color-paper)" : "var(--color-graphite)",
+                background: location === loc ? "var(--color-brand-100)" : "var(--color-paper)",
+                color: location === loc ? "var(--color-brand-700)" : "var(--color-gray-700)",
                 boxShadow: "var(--shadow-card)",
               }}
             >
@@ -126,8 +126,8 @@ function ScheduleInner() {
                     style={{
                       minHeight: "64px",
                       padding: "6px",
-                      border: isSel ? "1.5px solid var(--color-signal-orange)" : "1px solid var(--color-chalk)",
-                      background: isSel ? "color-mix(in srgb, var(--color-signal-orange) 8%, white)" : "var(--color-paper)",
+                      border: isSel ? "1.5px solid var(--color-brand-600)" : "1px solid var(--color-gray-150)",
+                      background: isSel ? "var(--color-brand-50)" : isToday ? "var(--color-yellow-100)" : "var(--color-paper)",
                       textAlign: "left",
                     }}
                   >

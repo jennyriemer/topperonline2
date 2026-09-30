@@ -1,11 +1,13 @@
 "use client";
 
-import { Suspense, useMemo, useState } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Archive, ArrowRight, Bell, Car, MapPin } from "lucide-react";
-import { PageHeader, Button, StatusBadge, Modal } from "@/components/ui";
-import { SampleBanner, SampleBadge } from "@/components/demo/SampleBadge";
+import { Archive, Bell, Car, MapPin } from "lucide-react";
+import { PageHeader, Button, Modal, Avatar } from "@/components/ui";
+import { SampleBanner } from "@/components/demo/SampleBadge";
+import { DndKanban, KanbanCardShell } from "@/components/kanban/DndKanban";
+import { useToast } from "@/components/layout/Toast";
 import { formatCurrency, formatPhone } from "@/lib/utils";
 import {
   DEMO_JOBS,
@@ -21,11 +23,11 @@ import {
   type JobBucket,
 } from "@/lib/demo/crm";
 
-const NEXT: Record<JobBucket, JobBucket | null> = {
-  waiting_arrival: "waiting_install",
-  waiting_install: "waiting_payment",
-  waiting_payment: "paid",
-  paid: null,
+const DOT: Record<JobBucket, string> = {
+  waiting_arrival: "#F5B900",
+  waiting_install: "#0E4CA1",
+  waiting_payment: "#FF5B59",
+  paid: "#0FC27B",
 };
 
 export default function JobsPage() {
@@ -39,6 +41,7 @@ export default function JobsPage() {
 function JobsInner() {
   const params = useSearchParams();
   const router = useRouter();
+  const { push } = useToast();
   const initialBucket = params.get("bucket") as JobBucket | null;
   const focus = params.get("focus");
   const [jobs, setJobs] = useState(DEMO_JOBS);
@@ -49,16 +52,10 @@ function JobsInner() {
 
   const visibleBuckets = showArchive ? JOB_BUCKETS : JOB_BUCKETS.filter((b) => b !== "paid");
 
-  const byBucket = useMemo(() => {
-    const map = new Map<JobBucket, DemoJob[]>();
-    for (const b of JOB_BUCKETS) map.set(b, []);
-    for (const j of jobs) map.get(j.bucket)!.push(j);
-    return map;
-  }, [jobs]);
-
-  const move = (id: string, bucket: JobBucket) => {
-    setJobs((prev) =>
-      prev.map((j) => {
+  const move = (id: string, bucket: JobBucket, undoable = true) => {
+    const prev = jobs.find((j) => j.id === id);
+    setJobs((list) =>
+      list.map((j) => {
         if (j.id !== id) return j;
         const next = { ...j, bucket };
         const today = new Date().toISOString().slice(0, 10);
@@ -71,22 +68,37 @@ function JobsInner() {
         return next;
       })
     );
+    if (undoable && prev) {
+      const client = getDemoClient(prev.clientId);
+      push(`Moved ${client ? clientDisplayName(client) : "job"} to ${JOB_BUCKET_META[bucket].short}`, () =>
+        move(id, prev.bucket, false)
+      );
+    }
   };
+
+  const columns = visibleBuckets.map((bucket) => {
+    const items = jobs.filter((j) => j.bucket === bucket);
+    const meta = JOB_BUCKET_META[bucket];
+    return {
+      id: bucket,
+      title: meta.short,
+      hint: meta.hint,
+      dot: DOT[bucket],
+      items,
+      sum: items.reduce((s, j) => s + jobTotal(j), 0),
+    };
+  });
 
   return (
     <div>
       <PageHeader
-        breadcrumbs={[{ label: "Suburban Toppers" }, { label: "Jobs" }]}
+        breadcrumbs={[{ label: "Pipelines" }, { label: "Jobs" }]}
         title="Invoice / job board"
         subtitle="Staff moves jobs by hand. Billing date starts when the topper is installed."
         actions={
           <>
-            <Button
-              variant={showArchive ? "filled" : "outlined"}
-              leadingIcon={<Archive size={16} />}
-              onClick={() => setShowArchive((v) => !v)}
-            >
-              {showArchive ? "Hide archive" : "Show paid archive"}
+            <Button variant={showArchive ? "filled" : "outlined"} leadingIcon={<Archive size={14} />} onClick={() => setShowArchive((v) => !v)}>
+              {showArchive ? "Hide archive" : "Paid archive"}
             </Button>
             <Button variant="filled" onClick={() => router.push("/clients")}>
               New from client
@@ -95,165 +107,67 @@ function JobsInner() {
         }
       />
 
-      <div style={{ padding: "0 32px 40px 32px" }}>
+      <div style={{ padding: "20px 24px 40px" }}>
         <SampleBanner>
-          Four buckets match the shop floor: Ordered → In → Installed (invoice sent, QuickBooks not
-          connected) → Paid archive. Click a card to open the invoice with labor vs. product tax lines.
+          Four buckets: Ordered → In → Installed (invoice sent, QuickBooks not connected) → Paid archive. Drag cards between columns.
         </SampleBanner>
 
-        <div
-          style={{
-            overflowX: "auto",
-            marginLeft: "-32px",
-            marginRight: "-32px",
-            paddingLeft: "32px",
-            paddingRight: "32px",
-          }}
-        >
-          <div
-            className="grid"
-            style={{
-              gridTemplateColumns: `repeat(${visibleBuckets.length}, minmax(280px, 1fr))`,
-              gap: "16px",
-              minWidth: visibleBuckets.length * 296,
-            }}
-          >
-            {visibleBuckets.map((bucket) => {
-              const meta = JOB_BUCKET_META[bucket];
-              const list = byBucket.get(bucket) ?? [];
-              const value = list.reduce((s, j) => s + jobTotal(j), 0);
-              const highlighted = initialBucket === bucket;
-              return (
-                <section
-                  key={bucket}
-                  className="rounded-md bg-paper"
-                  style={{
-                    boxShadow: "var(--shadow-card)",
-                    outline: highlighted ? "2px solid var(--color-signal-orange)" : undefined,
-                    minHeight: "420px",
-                    display: "flex",
-                    flexDirection: "column",
-                  }}
-                >
-                  <header style={{ padding: "16px 16px 12px", borderBottom: "1px solid var(--color-chalk)" }}>
-                    <div className="flex items-center justify-between">
-                      <StatusBadge variant={meta.variant}>{meta.short}</StatusBadge>
-                      <span className="text-carbon" style={{ fontFamily: "var(--font-display)", fontSize: "20px", fontWeight: 600 }}>
-                        {list.length}
-                      </span>
-                    </div>
-                    <div className="text-carbon" style={{ fontSize: "14px", fontWeight: 600, marginTop: "8px" }}>
-                      {meta.label}
-                    </div>
-                    <div className="text-slate" style={{ fontSize: "12px", marginTop: "2px" }}>
-                      {meta.hint}
-                    </div>
-                    <div className="text-graphite" style={{ fontSize: "13px", fontWeight: 600, marginTop: "8px" }}>
-                      {formatCurrency(value)}
-                    </div>
-                  </header>
-                  <div className="flex flex-col" style={{ gap: "8px", padding: "12px", flex: 1 }}>
-                    {list.length === 0 && (
-                      <div className="text-slate text-center" style={{ fontSize: "12px", padding: "24px 8px" }}>
-                        Nothing in this bucket
-                      </div>
-                    )}
-                    {list.map((job) => (
-                      <JobCard
-                        key={job.id}
-                        job={job}
-                        highlight={focus === job.id}
-                        onMove={move}
-                        onNotify={() => setNotifyJob(job)}
-                      />
-                    ))}
-                  </div>
-                </section>
-              );
-            })}
-          </div>
-        </div>
+        <DndKanban
+          columns={columns}
+          onMove={(id, col) => move(id, col as JobBucket)}
+          renderCard={(job) => (
+            <JobCard job={job} highlight={focus === job.id} onNotify={() => setNotifyJob(job)} />
+          )}
+        />
       </div>
 
-      {notifyJob && (
-        <ArrivalModal job={notifyJob} onClose={() => setNotifyJob(null)} />
-      )}
+      {notifyJob && <ArrivalModal job={notifyJob} onClose={() => setNotifyJob(null)} />}
     </div>
   );
 }
 
-function JobCard({
-  job,
-  highlight,
-  onMove,
-  onNotify,
-}: {
-  job: DemoJob;
-  highlight?: boolean;
-  onMove: (id: string, bucket: JobBucket) => void;
-  onNotify: () => void;
-}) {
+function JobCard({ job, highlight, onNotify }: { job: DemoJob; highlight?: boolean; onNotify: () => void }) {
   const client = getDemoClient(job.clientId)!;
   const invoice = getDemoInvoice(job.invoiceId)!;
   const totals = invoiceTotals(invoice);
-  const next = NEXT[job.bucket];
 
   return (
-    <article
-      className="rounded-md"
-      style={{
-        padding: "12px",
-        background: highlight ? "color-mix(in srgb, var(--color-signal-orange) 8%, white)" : "var(--color-fog)",
-        border: highlight ? "1px solid var(--color-signal-orange)" : "1px solid transparent",
-      }}
-    >
-      <div className="flex items-start justify-between" style={{ gap: "8px" }}>
+    <KanbanCardShell className={highlight ? "ring-2" : undefined} >
+      <div className="flex items-start justify-between" style={{ gap: 8 }}>
         <div className="min-w-0">
-          <div className="flex items-center" style={{ gap: "6px" }}>
-            <Link href={`/clients/${client.id}`} className="text-carbon hover:underline" style={{ fontSize: "13px", fontWeight: 600 }}>
-              {clientDisplayName(client)}
-            </Link>
-            <SampleBadge />
-          </div>
-          <div className="text-slate" style={{ fontSize: "11px", marginTop: "2px" }}>
+          <Link href={`/clients/${client.id}`} className="hover:underline" style={{ fontSize: 14, fontWeight: 600 }}>
+            {clientDisplayName(client)}
+          </Link>
+          <div className="font-mono text-gray-500" style={{ fontSize: 11, marginTop: 2 }}>
             {formatPhone(client.phone)}
           </div>
         </div>
-        <div className="text-carbon" style={{ fontSize: "13px", fontWeight: 600 }}>
-          {formatCurrency(totals.total)}
-        </div>
+        <div className="tabular" style={{ fontSize: 13, fontWeight: 600 }}>{formatCurrency(totals.total)}</div>
       </div>
-      <div className="flex items-center text-graphite" style={{ gap: "4px", marginTop: "8px", fontSize: "12px" }}>
-        <Car size={12} />
+      <div className="flex items-center text-gray-600" style={{ gap: 6, marginTop: 8, fontSize: 12 }}>
+        <Car size={14} className="text-gray-400" />
         {job.vehicle}
       </div>
-      <div className="text-carbon" style={{ fontSize: "12px", fontWeight: 500, marginTop: "2px" }}>
+      <div style={{ fontSize: 12, fontWeight: 500, marginTop: 2 }}>
         {job.manufacturer} {job.model} · {job.color}
       </div>
-      <div className="flex items-center text-slate" style={{ gap: "6px", marginTop: "6px", fontSize: "11px" }}>
-        <MapPin size={11} />
+      <div className="flex items-center text-gray-500" style={{ gap: 6, marginTop: 6, fontSize: 11 }}>
+        <MapPin size={12} />
         {locationLabel(job.location)}
-        {job.billedAt && <span>· billed {job.billedAt}</span>}
         {job.eta && job.bucket === "waiting_arrival" && <span>· ETA {job.eta}</span>}
       </div>
-      <div className="flex flex-wrap" style={{ gap: "6px", marginTop: "10px" }}>
-        <Link href={`/invoices/${invoice.id}`}>
-          <Button size="sm" variant="outlined">
-            Invoice
-          </Button>
+      <div className="flex items-center" style={{ gap: 6, marginTop: 10 }}>
+        <Avatar name={clientDisplayName(client)} size={20} />
+        <Link href={`/invoices/${invoice.id}`} className="text-brand-600" style={{ fontSize: 12, fontWeight: 600 }}>
+          Invoice
         </Link>
         {job.bucket === "waiting_install" && (
-          <Button size="sm" variant="outlined" leadingIcon={<Bell size={12} />} onClick={onNotify}>
-            Notify
-          </Button>
-        )}
-        {next && (
-          <Button size="sm" variant="filled" trailingIcon={<ArrowRight size={12} />} onClick={() => onMove(job.id, next)}>
-            {JOB_BUCKET_META[next].short}
-          </Button>
+          <button type="button" onClick={onNotify} className="text-gray-600" style={{ fontSize: 12, fontWeight: 600, border: "none", background: "transparent" }}>
+            <Bell size={12} className="inline" /> Notify
+          </button>
         )}
       </div>
-    </article>
+    </KanbanCardShell>
   );
 }
 
@@ -267,39 +181,21 @@ function ArrivalModal({ job, onClose }: { job: DemoJob; onClose: () => void }) {
       subtitle={`${job.manufacturer} ${job.model} for ${clientDisplayName(client)}`}
       footer={
         <>
-          <Button variant="outlined" onClick={onClose}>
-            Later
-          </Button>
+          <Button variant="outlined" onClick={onClose}>Later</Button>
           <Link href={`/schedule?job=${job.id}&date=${new Date().toISOString().slice(0, 10)}`}>
             <Button variant="filled">Open calendar</Button>
           </Link>
         </>
       }
     >
-      <p className="text-graphite" style={{ fontSize: "14px", lineHeight: 1.5, marginBottom: "14px" }}>
-        Light stock flow: call or email the customer, then drop them on the install calendar. No
-        inventory over-engineering — just close the loop.
+      <p className="text-gray-600" style={{ fontSize: 14, lineHeight: 1.5, marginBottom: 14 }}>
+        Call or email the customer, then drop them on the install calendar.
       </p>
-      <div
-        className="rounded-md"
-        style={{ padding: "12px 14px", background: "var(--color-fog)", fontSize: "13px", lineHeight: 1.55 }}
-      >
-        <div className="text-slate" style={{ fontSize: "11px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em" }}>
-          Suggested SMS
-        </div>
-        <p className="text-carbon" style={{ marginTop: "6px" }}>
-          Hi {client.firstName} — Suburban Toppers. Your {job.manufacturer} {job.model} is in at the{" "}
-          {locationLabel(job.location)} shop. Want us to put you on the calendar this week? Reply with a
-          day that works.
+      <div className="rounded-xl" style={{ padding: "12px 14px", background: "var(--color-gray-50)", fontSize: 13, lineHeight: 1.55 }}>
+        <div className="text-gray-500" style={{ fontSize: 11, fontWeight: 600 }}>Suggested SMS</div>
+        <p style={{ marginTop: 6 }}>
+          Hi {client.firstName} — Suburban Toppers. Your {job.manufacturer} {job.model} is in at the {locationLabel(job.location)} shop. Want us to put you on the calendar this week?
         </p>
-      </div>
-      <div className="flex" style={{ gap: "8px", marginTop: "14px" }}>
-        <Button variant="outlined" leadingIcon={<Bell size={14} />}>
-          Mark SMS queued
-        </Button>
-        <Link href={`/clients/${client.id}`}>
-          <Button variant="ghost">Open client</Button>
-        </Link>
       </div>
     </Modal>
   );
