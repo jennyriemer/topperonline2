@@ -110,7 +110,7 @@ export function MondayBoard<T extends { id: string }>({
 }) {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [active, setActive] = useState<T | null>(null);
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
 
   const itemMap = useMemo(() => {
     const m = new Map<string, { item: T; groupId: string }>();
@@ -559,15 +559,19 @@ function KanbanCard<T extends { id: string }>({
         borderRadius: 8,
         boxShadow: "var(--shadow-xs)",
         cursor: "grab",
+        touchAction: "none",
       }}
       {...attributes}
       {...listeners}
     >
-      <button
-        type="button"
+      <div
+        role="button"
+        tabIndex={0}
         onClick={() => onOpen(row)}
-        className="w-full text-left"
-        style={{ border: "none", background: "transparent", padding: 12 }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") onOpen(row);
+        }}
+        style={{ padding: 12 }}
       >
         <div style={{ fontSize: 14, fontWeight: 700 }}>{getName(row)}</div>
         {numberCol && (
@@ -575,7 +579,7 @@ function KanbanCard<T extends { id: string }>({
             {formatCurrency(numberCol.getNumber?.(row) ?? 0)}
           </div>
         )}
-      </button>
+      </div>
       {statusCol && (
         <StatusCell
           value={statusCol.getStatus?.(row)}

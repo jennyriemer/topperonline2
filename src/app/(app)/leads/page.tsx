@@ -29,6 +29,12 @@ type LeadRow = DemoLead & { ownerId: string };
 
 type GroupBy = "stage" | "source" | "owner" | "health";
 
+function coerceIso(value: unknown): string {
+  if (value == null || value === "") return new Date().toISOString();
+  const d = new Date(String(value));
+  return Number.isNaN(d.getTime()) ? new Date().toISOString() : d.toISOString();
+}
+
 function adaptApiLead(raw: Record<string, unknown>): DemoLead | null {
   const id = String(raw.id ?? "");
   const stage = LEGACY_LEAD_STAGE_MAP[String(raw.stage ?? "new_lead")] ?? "new_lead";
@@ -47,8 +53,8 @@ function adaptApiLead(raw: Record<string, unknown>): DemoLead | null {
     interest: String(raw.interest ?? ""),
     stage,
     estimatedValue: Number(raw.estimatedValue ?? 0),
-    lastContactAt: String(raw.lastContactAt ?? new Date().toISOString()),
-    createdAt: String(raw.createdAt ?? new Date().toISOString()),
+    lastContactAt: coerceIso(raw.lastContactAt),
+    createdAt: coerceIso(raw.createdAt),
     daysInStage: 1,
     traffic: "green",
     aiHandled: Boolean(raw.aiHandled),

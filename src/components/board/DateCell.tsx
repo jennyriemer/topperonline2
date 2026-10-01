@@ -3,6 +3,16 @@
 import { useState } from "react";
 import { Calendar } from "lucide-react";
 
+function parseDay(value: string | null | undefined): string {
+  if (!value) return "";
+  const raw = String(value).trim();
+  if (!raw) return "";
+  const isoCandidate = raw.includes("T") ? raw : /^\d{4}-\d{2}-\d{2}/.test(raw) ? `${raw.slice(0, 10)}T12:00:00` : raw;
+  const d = new Date(isoCandidate);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toISOString().slice(0, 10);
+}
+
 export function DateCell({
   value,
   onChange,
@@ -11,7 +21,7 @@ export function DateCell({
   onChange?: (iso: string) => void;
 }) {
   const [editing, setEditing] = useState(false);
-  const iso = value ? (value.includes("T") ? value.slice(0, 10) : value) : "";
+  const iso = parseDay(value);
   const label = iso
     ? new Date(iso + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })
     : "";
