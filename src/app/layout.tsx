@@ -18,6 +18,10 @@ const jetbrains = JetBrains_Mono({
 export const metadata: Metadata = {
   title: "Suburban Toppers CRM",
   description: "Truck topper dealer operations dashboard",
+  icons: {
+    icon: "/suburban-toppers-logo.png",
+    apple: "/suburban-toppers-logo.png",
+  },
 };
 
 export default function RootLayout({

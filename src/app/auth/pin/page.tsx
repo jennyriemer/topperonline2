@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, KeyboardEvent } from "react";
 import { useRouter } from "next/navigation";
+import { BrandLogo } from "@/components/brand/Logo";
 
 export default function PinEntryPage() {
   const [pin, setPin] = useState(["", "", "", ""]);
@@ -78,26 +79,9 @@ export default function PinEntryPage() {
           className="overflow-hidden bg-white"
           style={{ borderRadius: 12, boxShadow: "var(--shadow-lg)", border: "1px solid var(--color-gray-150)" }}
         >
-          <div style={{ background: "#0E4CA1", padding: "28px 24px 22px", color: "white", textAlign: "center" }}>
-            <div
-              className="inline-flex items-center justify-center font-display"
-              style={{
-                width: 48,
-                height: 48,
-                borderRadius: 10,
-                background: "#FFD504",
-                color: "#0E4CA1",
-                fontSize: 16,
-                fontWeight: 800,
-                marginBottom: 12,
-              }}
-            >
-              ST
-            </div>
-            <h1 className="font-display" style={{ fontSize: 22 }}>
-              Suburban Toppers
-            </h1>
-            <p style={{ fontSize: 13, opacity: 0.85, marginTop: 4 }}>CRM workspace · enter PIN</p>
+          <div style={{ background: "#0E4CA1", padding: "24px 24px 20px", color: "white", textAlign: "center" }}>
+            <BrandLogo width={180} />
+            <p style={{ fontSize: 13, opacity: 0.85, marginTop: 12 }}>CRM workspace · enter PIN</p>
           </div>
 
           <div style={{ padding: 28 }}>
