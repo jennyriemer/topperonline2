@@ -76,7 +76,7 @@ export async function buildBriefing(): Promise<Briefing> {
   // --- Pipeline (LIVE from DB) ---
   const leads = listLeads();
   const counts: Record<string, number> = {
-    new_lead: 0, ai_contacted: 0, responded: 0, appointment_set: 0, confirmed_sale: 0,
+    new_lead: 0, contacted: 0, conversation: 0, sale_pending: 0, in_order: 0,
   };
   let totalEstimatedValue = 0;
   let newLeadsLast24h = 0;
@@ -108,7 +108,8 @@ export async function buildBriefing(): Promise<Briefing> {
     );
   }
   const staleResponded = leads.filter(
-    (l) => l.stage === "responded" &&
+    (l) =>
+      (l.stage === "conversation" || l.stage === "responded") &&
       Date.now() - new Date(l.last_contact_at + "Z").getTime() > 3 * 24 * 60 * 60 * 1000
   );
   if (staleResponded.length > 0) {
@@ -154,10 +155,10 @@ export async function buildBriefing(): Promise<Briefing> {
 
 const STAGE_LABELS: Record<string, string> = {
   new_lead: "New",
-  ai_contacted: "AI Contacted",
-  responded: "Responded",
-  appointment_set: "Appt Set",
-  confirmed_sale: "Confirmed",
+  contacted: "Contacted",
+  conversation: "Conversation",
+  sale_pending: "Sale Pending",
+  in_order: "In Order",
 };
 
 export function renderBriefingMarkdown(b: Briefing): string {

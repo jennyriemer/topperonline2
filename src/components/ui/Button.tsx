@@ -1,37 +1,20 @@
-/**
- * Filled, Outlined, and Ghost pill buttons.
- *
- * Design rules (from DESIGN.md):
- *   - Filled: Carbon bg (#202020), white text, 20px radius, Inter 15px weight 600
- *   - Outlined: 1px Carbon border, transparent bg, Carbon text, 20px radius
- *   - Ghost: no border, transparent bg, Graphite icon
- *   - Special "Get Report" filled variant: Signal Orange bg + white text
- *     (the ONLY place Signal Orange is used as a button fill, per spec)
- *
- * Sizing uses inline style values from the design spec to avoid the
- * Tailwind v4 spacing scale trap (h-44 = 176px, not 44px).
- */
-
 import { forwardRef, type ButtonHTMLAttributes, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
-export type ButtonVariant = "filled" | "outlined" | "ghost" | "report";
+export type ButtonVariant = "filled" | "outlined" | "ghost" | "report" | "accent" | "dark" | "success";
 export type ButtonSize = "sm" | "md";
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: ButtonVariant;
   size?: ButtonSize;
-  /** Leading icon (Lucide or custom) */
   leadingIcon?: ReactNode;
-  /** Trailing icon (Lucide or custom) */
   trailingIcon?: ReactNode;
-  /** Loading state — disables the button and shows a subtle opacity */
   loading?: boolean;
 }
 
-const SIZE_MAP: Record<ButtonSize, { height: number; fontSize: number; px: number; py: number; fontWeight: 500 | 600 }> = {
-  sm: { height: 32, fontSize: 13, px: 14, py: 6, fontWeight: 500 },
-  md: { height: 40, fontSize: 15, px: 20, py: 10, fontWeight: 600 },
+const SIZE_MAP: Record<ButtonSize, { height: number; fontSize: number; px: number }> = {
+  sm: { height: 28, fontSize: 13, px: 10 },
+  md: { height: 32, fontSize: 14, px: 12 },
 };
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
@@ -52,19 +35,15 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
   const s = SIZE_MAP[size];
   const isDisabled = disabled || loading;
 
-  // Variant styles
-  const variantClass = (() => {
-    switch (variant) {
-      case "filled":
-        return "bg-carbon text-paper hover:bg-carbon/85 active:bg-carbon/75";
-      case "outlined":
-        return "bg-transparent text-carbon border border-carbon hover:bg-fog active:bg-chalk";
-      case "ghost":
-        return "bg-transparent text-graphite hover:bg-fog active:bg-chalk";
-      case "report":
-        return "bg-signal-orange text-paper hover:bg-signal-orange/90 active:bg-signal-orange/80";
-    }
-  })();
+  const variantClass = {
+    filled: "bg-brand-600 text-white hover:bg-brand-700 shadow-sm",
+    outlined: "bg-white text-ink border border-gray-150 hover:border-gray-300 shadow-sm",
+    ghost: "bg-transparent text-gray-600 hover:bg-gray-50",
+    report: "bg-brand-600 text-white hover:bg-brand-700 shadow-sm",
+    accent: "bg-yellow-400 text-ink hover:bg-yellow-500",
+    dark: "bg-ink text-white hover:bg-gray-900",
+    success: "text-white shadow-sm hover:opacity-90",
+  }[variant];
 
   return (
     <button
@@ -72,36 +51,25 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       type={type}
       disabled={isDisabled}
       className={cn(
-        "inline-flex items-center justify-center rounded-xl transition-colors",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-carbon focus-visible:ring-offset-2",
-        "disabled:cursor-not-allowed",
-        variant === "ghost" || variant === "outlined" || variant === "report" || variant === "filled"
-          ? variantClass
-          : variantClass,
-        isDisabled && variant === "filled" && "bg-chalk text-slate hover:bg-chalk",
-        isDisabled && variant === "report" && "bg-chalk text-slate hover:bg-chalk",
-        isDisabled && variant === "outlined" && "border-chalk text-slate bg-transparent hover:bg-transparent",
-        isDisabled && variant === "ghost" && "text-slate hover:bg-transparent",
+        "inline-flex items-center justify-center rounded-lg font-medium transition-colors duration-150",
+        variantClass,
+        isDisabled && "opacity-50 pointer-events-none",
         className
       )}
       style={{
         height: `${s.height}px`,
         paddingLeft: `${s.px}px`,
         paddingRight: `${s.px}px`,
-        paddingTop: `${s.py}px`,
-        paddingBottom: `${s.py}px`,
         fontSize: `${s.fontSize}px`,
-        fontWeight: s.fontWeight,
-        gap: "8px",
+        gap: "6px",
         lineHeight: 1.2,
-        letterSpacing: "normal",
-        opacity: loading ? 0.7 : 1,
+        background: variant === "success" ? "#00c875" : undefined,
       }}
       {...rest}
     >
-      {leadingIcon && <span style={{ display: "inline-flex", flexShrink: 0 }}>{leadingIcon}</span>}
-      <span style={{ whiteSpace: "nowrap" }}>{children}</span>
-      {trailingIcon && <span style={{ display: "inline-flex", flexShrink: 0 }}>{trailingIcon}</span>}
+      {leadingIcon && <span className="inline-flex shrink-0">{leadingIcon}</span>}
+      {children && <span className="whitespace-nowrap">{children}</span>}
+      {trailingIcon && <span className="inline-flex shrink-0">{trailingIcon}</span>}
     </button>
   );
 });

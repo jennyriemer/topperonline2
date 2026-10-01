@@ -91,6 +91,14 @@ function migrate(db: Database.Database) {
     );
     CREATE INDEX IF NOT EXISTS idx_agent_actions_agent ON agent_actions(agent);
   `);
+
+  // Additive remap: old Sarah columns → client-facing pipeline. Does not delete rows.
+  db.exec(`
+    UPDATE leads SET stage = 'contacted' WHERE stage = 'ai_contacted';
+    UPDATE leads SET stage = 'conversation' WHERE stage = 'responded';
+    UPDATE leads SET stage = 'sale_pending' WHERE stage = 'appointment_set';
+    UPDATE leads SET stage = 'in_order' WHERE stage = 'confirmed_sale';
+  `);
 }
 
 // ---------------------------------------------------------------------------
@@ -114,7 +122,7 @@ const SEED_LEADS: Array<{
     id: "L-2002", first: "Sarah", last: "Martinez", phone: "(720) 555-2002",
     email: "sarah.martinez@gmail.com", source: "google_ads",
     vehicle: "2023 Toyota Tacoma", interest: "ARE Overland",
-    stage: "ai_contacted", value: 4100,
+    stage: "contacted", value: 4100,
     messages: [
       { sender: "system", body: "Lead created from Google Ads" },
       { sender: "ai", body: "Hi! This is Sarah from Suburban Toppers. I saw you were looking at the ARE Overland for your 2023 Tacoma. Do you have a few minutes to chat?" },
@@ -124,7 +132,7 @@ const SEED_LEADS: Array<{
     id: "L-2003", first: "Tom", last: "Walker", phone: "(303) 555-2003",
     email: "tom.walker@gmail.com", source: "facebook",
     vehicle: "2023 Chevy Silverado", interest: "Leer 100R topper",
-    stage: "responded", value: 2900,
+    stage: "conversation", value: 2900,
     messages: [
       { sender: "ai", body: "Hi! This is Sarah from Suburban Toppers. I saw you were looking at the Leer 100R for your Silverado." },
       { sender: "customer", body: "Yes, I'm interested. What colors do you have in stock?" },
@@ -135,7 +143,7 @@ const SEED_LEADS: Array<{
     id: "L-2004", first: "Jennifer", last: "Chen", phone: "(720) 555-2004",
     email: "jennifer.chen@gmail.com", source: "referral",
     vehicle: "2024 RAM 1500", interest: "ARE Z Series",
-    stage: "appointment_set", value: 3800,
+    stage: "sale_pending", value: 3800,
     messages: [
       { sender: "ai", body: "Hi Jennifer! Just confirming your appointment for Saturday at 10am." },
       { sender: "customer", body: "Confirmed, see you then." },
@@ -146,7 +154,7 @@ const SEED_LEADS: Array<{
     id: "L-2005", first: "David", last: "O'Brien", phone: "(303) 555-2005",
     email: "david.obrien@gmail.com", source: "walk_in",
     vehicle: "2023 Ford F-250", interest: "ARE RT Series",
-    stage: "confirmed_sale", value: 4600,
+    stage: "in_order", value: 4600,
     messages: [
       { sender: "ai", body: "Thanks for choosing Suburban Toppers! Your order is confirmed." },
       { sender: "system", body: "Invoice INV-2026-0847 created — $4,600" },

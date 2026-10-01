@@ -7,7 +7,18 @@ import { getLead, getLeadMessages, updateLeadStage, logAgentAction } from "@/lib
 
 export const dynamic = "force-dynamic";
 
-const VALID_STAGES = ["new_lead", "ai_contacted", "responded", "appointment_set", "confirmed_sale"];
+const VALID_STAGES = [
+  "new_lead",
+  "contacted",
+  "conversation",
+  "sale_pending",
+  "in_order",
+  // legacy aliases still accepted and stored; UI maps them
+  "ai_contacted",
+  "responded",
+  "appointment_set",
+  "confirmed_sale",
+];
 
 function serialize(id: string) {
   const row = getLead(id);

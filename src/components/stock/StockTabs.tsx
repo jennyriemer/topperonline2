@@ -9,9 +9,10 @@
  */
 
 import { useState, useMemo, type ReactNode } from "react";
-import { Package, ArrowDownToLine, Boxes, Search, X } from "lucide-react";
+import Link from "next/link";
+import { Package, ArrowDownToLine, Boxes, Search, X, Bell } from "lucide-react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { DataTable, Tabs } from "@/components/ui";
+import { DataTable, Tabs, Button, Modal } from "@/components/ui";
 import { textColumn, dateColumn, currencyColumn } from "@/lib/columns";
 import { formatCurrency } from "@/lib/utils";
 import type { InHouseOrderRow, TradeInRow, InventoryRow } from "@/lib/data/stock";
@@ -30,29 +31,72 @@ const ITEM_STATUS_VARIANT: Record<string, "green" | "blue" | "amber" | "red"> = 
 };
 
 export function StockTabs({ inHouseOrders, tradeIns, inventory }: StockTabsProps) {
+  const [notifyOpen, setNotifyOpen] = useState(false);
+  const hasLive = inHouseOrders.length + tradeIns.length + inventory.length > 0;
+
   return (
-    <Tabs
-      tabs={[
-        {
-          value: "in_house",
-          label: "In House Orders",
-          count: inHouseOrders.length,
-          content: <InHouseOrdersTab orders={inHouseOrders} />,
-        },
-        {
-          value: "trade_in",
-          label: "Trade-In",
-          count: tradeIns.length,
-          content: <TradeInTab tradeIns={tradeIns} />,
-        },
-        {
-          value: "inventory",
-          label: "Inventory",
-          count: inventory.length,
-          content: <InventoryTab inventory={inventory} />,
-        },
-      ]}
-    />
+    <>
+      <div className="flex justify-end" style={{ marginBottom: 12 }}>
+        <Button size="sm" variant="outlined" leadingIcon={<Bell size={14} />} onClick={() => setNotifyOpen(true)}>
+          Topper arrived — notify
+        </Button>
+      </div>
+      {!hasLive && (
+        <p className="text-slate" style={{ fontSize: 13, marginBottom: 12 }}>
+          Live stock RPCs aren’t returning rows in this environment. Sample arrival flow still works below.
+        </p>
+      )}
+      <Tabs
+        tabs={[
+          {
+            value: "in_house",
+            label: "In House Orders",
+            count: inHouseOrders.length,
+            content: <InHouseOrdersTab orders={inHouseOrders} onArrive={() => setNotifyOpen(true)} />,
+          },
+          {
+            value: "trade_in",
+            label: "Trade-In",
+            count: tradeIns.length,
+            content: <TradeInTab tradeIns={tradeIns} />,
+          },
+          {
+            value: "inventory",
+            label: "Inventory",
+            count: inventory.length,
+            content: <InventoryTab inventory={inventory} />,
+          },
+        ]}
+      />
+      <Modal
+        open={notifyOpen}
+        onClose={() => setNotifyOpen(false)}
+        title="Topper arrived — notify & schedule"
+        subtitle="ATC Work Cap · Maya Chen · (303) 903-8821"
+        footer={
+          <>
+            <Button variant="outlined" onClick={() => setNotifyOpen(false)}>
+              Later
+            </Button>
+            <Link href="/jobs?focus=demo-j-02&bucket=waiting_install">
+              <Button variant="outlined">Open job</Button>
+            </Link>
+            <Link href="/schedule">
+              <Button variant="filled">Put on calendar</Button>
+            </Link>
+          </>
+        }
+      >
+        <p className="text-graphite" style={{ fontSize: 14, lineHeight: 1.5 }}>
+          Light stock loop: the cap is on the lot, text the customer, then book the bay. This does not
+          write production inventory.
+        </p>
+        <div className="rounded-md" style={{ marginTop: 12, padding: 12, background: "var(--color-fog)", fontSize: 13, lineHeight: 1.5 }}>
+          Hi Maya — Suburban Toppers. Your ATC Work Cap is in at the Colfax shop. Want a morning install this
+          week?
+        </div>
+      </Modal>
+    </>
   );
 }
 
@@ -60,7 +104,7 @@ export function StockTabs({ inHouseOrders, tradeIns, inventory }: StockTabsProps
 // In House Orders tab — invoice_items with a manufacturer order status
 // ============================================================================
 
-function InHouseOrdersTab({ orders }: { orders: InHouseOrderRow[] }) {
+function InHouseOrdersTab({ orders, onArrive }: { orders: InHouseOrderRow[]; onArrive: () => void }) {
   const [search, setSearch] = useState("");
 
   const filtered = useMemo(() => {
@@ -140,6 +184,11 @@ function InHouseOrdersTab({ orders }: { orders: InHouseOrderRow[] }) {
       onSearchChange={setSearch}
       filteredCount={filtered.length}
       totalCount={orders.length}
+      rightSlot={
+        <Button size="sm" variant="ghost" leadingIcon={<Bell size={14} />} onClick={onArrive}>
+          Mark a unit arrived
+        </Button>
+      }
     >
       <DataTable<InHouseOrderRow>
         data={filtered}

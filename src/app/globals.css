@@ -1,74 +1,132 @@
 @import "tailwindcss";
 
 /* =============================================================================
- * SUBURBAN TOPPERS CRM — DESIGN TOKENS
- * Single source of truth. Edit values here, they propagate everywhere.
- * Source: /DESIGN.md (style reference)
+ * Suburban Toppers CRM — monday.com-inspired board UI
+ * Chrome: brand blue #0E4CA1 + yellow #FFD504
+ * Labels: monday vivid status colors
+ * Font: Figtree
  * ============================================================================= */
 
 @theme {
-  /* ----- Core Colors (the only chromatic accent is Signal Orange) ----- */
-  --color-signal-orange: #ff682c;
-  --color-sienna-bronze: #816729;
-  --color-carbon: #202020;
-  --color-graphite: #4d4d4d;
-  --color-slate: #828282;
-  --color-fog: #f5f5f5;
-  --color-mist: #efefef;
-  --color-chalk: #e8e8e8;
-  --color-paper: #ffffff;
+  --color-brand-50: #E8F0FA;
+  --color-brand-100: #D2E1F5;
+  --color-brand-200: #A6C3EB;
+  --color-brand-400: #4F82CB;
+  --color-brand-500: #1F5DB4;
+  --color-brand-600: #0E4CA1;
+  --color-brand-700: #0B3E85;
+  --color-link: #1357A9;
+  --color-yellow-100: #FFF6C2;
+  --color-yellow-400: #FFD504;
+  --color-yellow-500: #E6BF00;
+  --color-yellow-700: #8A7200;
+  --color-charcoal: #323338;
 
-  /* ----- Semantic Status Colors (badges & inline indicators only) ----- */
-  --color-status-green: #22c55e;
-  --color-status-amber: #f59e0b;
-  --color-status-red: #ef4444;
-  --color-status-blue: #3b82f6;
-  --color-status-purple: #8b5cf6;
+  --color-gray-0: #FFFFFF;
+  --color-gray-25: #F6F7FB;
+  --color-gray-50: #F0F1F5;
+  --color-gray-100: #E6E9EF;
+  --color-gray-150: #D0D4E4;
+  --color-gray-200: #C5C7D0;
+  --color-gray-300: #B2B6C6;
+  --color-gray-400: #9699A6;
+  --color-gray-500: #676879;
+  --color-gray-600: #505268;
+  --color-gray-700: #323338;
+  --color-gray-900: #1C1F3B;
+  --color-ink: #323338;
 
-  /* ----- Surfaces ----- */
-  --color-canvas: #efefef;       /* page background */
-  --color-surface: #ffffff;      /* card surface */
-  --color-inset: #f5f5f5;        /* alt row, sidebar hover */
-  --color-divider: #e8e8e8;      /* chalk, input borders */
+  --color-success: #00c875;
+  --color-success-bg: #E3FDEC;
+  --color-success-fg: #007F4B;
+  --color-warning: #fdab3d;
+  --color-warning-bg: #FFF3E0;
+  --color-warning-fg: #C47A12;
+  --color-danger: #e2445c;
+  --color-danger-bg: #FDE8EC;
+  --color-danger-fg: #C0213A;
+  --color-info: #579bfc;
+  --color-info-bg: #E8F1FE;
+  --color-info-fg: #1F6AD6;
+  --color-purple: #a25ddc;
+  --color-purple-bg: #F4E9FB;
+  --color-purple-fg: #7A35B8;
+  --color-pink: #ff5ac4;
+  --color-pink-bg: #FDE7F6;
+  --color-pink-fg: #C21A8A;
+  --color-teal: #007eb5;
+  --color-teal-bg: #E0F3FB;
+  --color-teal-fg: #00648F;
+  --color-rec-green: #00c875;
+  --color-rec-orange: #fdab3d;
 
-  /* ----- Typography: Families ----- */
-  --font-display: var(--font-space-grotesk), ui-sans-serif, system-ui, -apple-system, sans-serif;
-  --font-inter: var(--font-inter), ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --color-signal-orange: #0E4CA1;
+  --color-sienna-bronze: #8A7200;
+  --color-carbon: #323338;
+  --color-graphite: #676879;
+  --color-slate: #9699A6;
+  --color-fog: #F0F1F5;
+  --color-mist: #F6F7FB;
+  --color-chalk: #D0D4E4;
+  --color-paper: #FFFFFF;
+  --color-canvas: #F6F7FB;
+  --color-surface: #FFFFFF;
+  --color-inset: #F0F1F5;
+  --color-divider: #D0D4E4;
 
-  /* ----- Typography: Spacing (custom letter-spacing values) ----- */
-  --tracking-page-title: -0.48px;
-  --tracking-subheading: -0.64px;
-  --tracking-heading: -0.80px;
-  --tracking-kpi-value: -0.64px;
+  --color-status-green: #00c875;
+  --color-status-amber: #fdab3d;
+  --color-status-red: #e2445c;
+  --color-status-blue: #579bfc;
+  --color-status-purple: #a25ddc;
 
-  /* ----- Spacing Scale (4px base unit) ----- */
-  --spacing-4: 4px;
-  --spacing-8: 8px;
-  --spacing-12: 12px;
-  --spacing-16: 16px;
-  --spacing-20: 20px;
-  --spacing-24: 24px;
-  --spacing-32: 32px;
-  --spacing-36: 36px;
-  --spacing-40: 40px;
-  --spacing-60: 60px;
+  --color-mon-green: #00c875;
+  --color-mon-orange: #fdab3d;
+  --color-mon-red: #e2445c;
+  --color-mon-blue: #579bfc;
+  --color-mon-purple: #a25ddc;
+  --color-mon-yellow: #ffcb00;
+  --color-mon-lime: #9cd326;
+  --color-mon-sky: #007eb5;
+  --color-mon-gray: #c4c4c4;
 
-  /* ----- Border Radius ----- */
+  --font-display: var(--font-figtree), "Poppins", ui-sans-serif, system-ui, sans-serif;
+  --font-inter: var(--font-figtree), "Poppins", ui-sans-serif, system-ui, sans-serif;
+  --font-figtree: var(--font-figtree), "Poppins", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, SFMono-Regular, Menlo, monospace;
+
   --radius-sm: 4px;
-  --radius-md: 8px;     /* cards, inputs */
-  --radius-lg: 12px;    /* modals */
-  --radius-xl: 20px;    /* buttons, badges, tags */
-  --radius-full: 200px; /* nav capsule */
+  --radius-md: 8px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --radius-2xl: 16px;
+  --radius-full: 9999px;
+
+  --shadow-xs: 0 1px 2px rgba(50, 51, 56, 0.06);
+  --shadow-sm: 0 4px 8px rgba(50, 51, 56, 0.04), 0 0 1px rgba(50, 51, 56, 0.12);
+  --shadow-md: 0 8px 16px rgba(50, 51, 56, 0.08), 0 0 1px rgba(50, 51, 56, 0.12);
+  --shadow-lg: 0 15px 50px rgba(0, 0, 0, 0.12);
+  --shadow-card: 0 4px 8px rgba(50, 51, 56, 0.04), 0 0 1px rgba(50, 51, 56, 0.12);
+  --shadow-card-hover: 0 8px 16px rgba(50, 51, 56, 0.08);
+  --ease-attio: cubic-bezier(0.2, 0, 0, 1);
+  --ease-monday: cubic-bezier(0.2, 0, 0, 1);
 }
 
-/* -----------------------------------------------------------------------------
- * Base layer
- * --------------------------------------------------------------------------- */
+:root {
+  --shadow-card: 0 4px 8px rgba(50, 51, 56, 0.04), 0 0 1px rgba(50, 51, 56, 0.12);
+  --shadow-card-hover: 0 8px 16px rgba(50, 51, 56, 0.08);
+  --ease-attio: cubic-bezier(0.2, 0, 0, 1);
+  --sidebar-w: 260px;
+  --sidebar-collapsed: 64px;
+  --topbar-h: 48px;
+}
+
 html, body {
   background: var(--color-canvas);
-  color: var(--color-carbon);
-  font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
-  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  color: var(--color-ink);
+  font-family: var(--font-figtree), "Poppins", ui-sans-serif, system-ui, sans-serif;
+  font-weight: 400;
+  letter-spacing: 0;
 }
 
 body {
@@ -77,18 +135,74 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Smooth focus ring for keyboard nav (matches Carbon border on focus) */
-:focus-visible {
-  outline: 2px solid var(--color-carbon);
-  outline-offset: 2px;
-  border-radius: 4px;
+.font-display {
+  font-family: var(--font-figtree), "Poppins", ui-sans-serif, system-ui, sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.01em;
 }
 
-/* Reset button default styling */
-button {
-  font-family: inherit;
-  cursor: pointer;
+.font-mono, .tabular {
+  font-variant-numeric: tabular-nums;
 }
-button:disabled {
-  cursor: not-allowed;
+
+.font-mono {
+  font-family: var(--font-jetbrains), ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-weight: 400;
+}
+
+:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(87, 155, 252, 0.45);
+}
+
+button { font-family: inherit; cursor: pointer; }
+button:disabled { cursor: not-allowed; }
+
+a { color: inherit; }
+
+html[data-sidebar="collapsed"] main { padding-left: var(--sidebar-collapsed); }
+html[data-sidebar="expanded"] main,
+html:not([data-sidebar]) main { padding-left: var(--sidebar-w); }
+
+@media (max-width: 768px) {
+  html[data-sidebar="collapsed"] main,
+  html[data-sidebar="expanded"] main,
+  html:not([data-sidebar]) main { padding-left: 0; }
+
+  .st-sidebar {
+    transform: translateX(-100%);
+    width: 260px !important;
+  }
+  html[data-sidebar="expanded"] .st-sidebar {
+    transform: translateX(0);
+  }
+  .st-nav-backdrop { display: none; }
+  html[data-sidebar="expanded"] .st-nav-backdrop { display: block; }
+}
+
+.kanban-lift {
+  transform: scale(1.03) rotate(1.5deg);
+  box-shadow: var(--shadow-lg);
+}
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.toast-in { animation: toast-in 150ms cubic-bezier(0, 0, 0, 1); }
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-8px); }
+  75% { transform: translateX(8px); }
+}
+.shake { animation: shake 0.4s ease-in-out; }
+
+.monday-cell {
+  border-right: 1px solid var(--color-gray-100);
+  min-height: 36px;
+}
+
+.monday-row:hover .monday-sticky {
+  background: #f5f6f8;
 }

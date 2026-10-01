@@ -30,7 +30,7 @@ export function Card({ children, padding = 24, hoverable, className, style, ...r
   return (
     <div
       className={cn(
-        "bg-paper rounded-md",
+        "bg-paper rounded-lg",
         hoverable && "transition-shadow hover:shadow-card-hover cursor-pointer",
         className
       )}
@@ -91,10 +91,12 @@ export function SectionCard({
           <div
             className="text-carbon"
             style={{
-              fontFamily: "var(--font-display)",
-              fontSize: "16px",
+              fontFamily: "var(--font-inter)",
+              fontOpticalSizing: "auto",
+              fontSize: "14px",
               fontWeight: 600,
-              lineHeight: 1.2,
+              lineHeight: 1.3,
+              letterSpacing: "-0.005em",
             }}
           >
             {title}

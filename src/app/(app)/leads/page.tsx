@@ -1,836 +1,373 @@
-/**
- * Leads & Outreach — AI sales pipeline Kanban board.
- *
- * Per DESIGN.md Section 4. This is the most distinctive page in the CRM:
- * instead of a table, leads live in a 5-column Kanban board showing the
- * AI-driven sales pipeline.
- *
- * Stages (left to right):
- *   1. New Lead        — inbound, hasn't been contacted
- *   2. AI Contacted    — AI agent sent initial SMS
- *   3. Responded       — customer replied
- *   4. Appointment Set — booked install appointment
- *   5. Confirmed Sale  — invoice created
- *
- * Click-to-move: clicking a card opens a small popover menu with
- * "Move to ..." options for each stage. The card animates to the new column
- * (220ms ease-out). In the future this becomes drag-and-drop, but click-to-move
- * is enough for now.
- *
- * Skip for now (Scope B): per-lead drawer with Conversation/Details/Timeline
- * tabs, AI activity feed, real-time updates.
- */
-
 "use client";
 
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { MondayBoard, ItemPanel, type BoardColumn, type BoardGroup, type BoardView } from "@/components/board";
+import { Button } from "@/components/ui";
+import { useToast } from "@/components/layout/Toast";
+import { formatCurrency, formatPhone } from "@/lib/utils";
 import {
-  Plus,
-  Download,
-  Search,
-  Filter,
-  Sparkles,
-  Car,
-  X,
-  ArrowRight,
-} from "lucide-react";
-import { PageHeader, Button } from "@/components/ui";
-import { FunnelCard } from "@/components/charts/FunnelCard";
-import {
-  PIPELINE_STAGE_LABELS,
-  type Lead,
-  type LeadStage,
+  DEMO_LEADS,
+  LEAD_SOURCE_LABEL,
+  LEAD_STAGE_LABELS,
+  LEAD_STAGES,
+  LEGACY_LEAD_STAGE_MAP,
+  type DemoLead,
   type LeadSource,
-} from "@/lib/mock-data";
-import { formatCurrency } from "@/lib/utils";
+  type LeadStage,
+} from "@/lib/demo/crm";
+import {
+  HEALTH_STATUS,
+  LEAD_STAGE_STATUS,
+  SOURCE_STATUS,
+  defaultLeadOwner,
+  optionById,
+  STAFF,
+} from "@/lib/monday";
 
-const STAGES: LeadStage[] = [
-  "new_lead",
-  "ai_contacted",
-  "responded",
-  "appointment_set",
-  "confirmed_sale",
-];
+type LeadRow = DemoLead & { ownerId: string };
 
-const SOURCE_LABEL: Record<LeadSource, string> = {
-  website: "Website",
-  phone_call: "Phone",
-  walk_in: "Walk-in",
-  referral: "Referral",
-  google_ads: "Google Ads",
-  facebook: "Facebook",
-};
+type GroupBy = "stage" | "source" | "owner" | "health";
+
+function coerceIso(value: unknown): string {
+  if (value == null || value === "") return new Date().toISOString();
+  const d = new Date(String(value));
+  return Number.isNaN(d.getTime()) ? new Date().toISOString() : d.toISOString();
+}
+
+function adaptApiLead(raw: Record<string, unknown>): DemoLead | null {
+  const id = String(raw.id ?? "");
+  const stage = LEGACY_LEAD_STAGE_MAP[String(raw.stage ?? "new_lead")] ?? "new_lead";
+  const first = String(raw.firstName ?? "");
+  if (!id || !first) return null;
+  return {
+    id,
+    firstName: first,
+    lastName: String(raw.lastName ?? ""),
+    phone: String(raw.phone ?? ""),
+    email: String(raw.email ?? ""),
+    source: (raw.source as LeadSource) || "website",
+    vehicle: String(raw.vehicle ?? ""),
+    bedSize: "",
+    color: "",
+    interest: String(raw.interest ?? ""),
+    stage,
+    estimatedValue: Number(raw.estimatedValue ?? 0),
+    lastContactAt: coerceIso(raw.lastContactAt),
+    createdAt: coerceIso(raw.createdAt),
+    daysInStage: 1,
+    traffic: "green",
+    aiHandled: Boolean(raw.aiHandled),
+    activity: [],
+  };
+}
 
 export default function LeadsPage() {
-  // Live data from /api/leads (Phase 2b) — Sarah keeps this fresh.
-  const [leads, setLeads] = useState<Lead[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
+  const [leads, setLeads] = useState<LeadRow[]>(() => DEMO_LEADS.map((l) => ({ ...l, ownerId: defaultLeadOwner(l.id) })));
   const [sourceFilter, setSourceFilter] = useState<LeadSource | "all">("all");
-  const [activePopover, setActivePopover] = useState<string | null>(null);
-  const [showNewLead, setShowNewLead] = useState(false);
-
-  const refresh = async () => {
-    const res = await fetch("/api/leads");
-    const data = await res.json();
-    setLeads(data.leads ?? []);
-  };
+  const [search, setSearch] = useState("");
+  const [personFilter, setPersonFilter] = useState<string | "all">("all");
+  const [groupBy, setGroupBy] = useState<GroupBy>("stage");
+  const [view, setView] = useState<BoardView>("table");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const [openId, setOpenId] = useState<string | null>(null);
+  const { push } = useToast();
 
   useEffect(() => {
-    let cancelled = false;
     fetch("/api/leads")
-      .then((res) => res.json())
-      .then((data) => {
-        if (!cancelled) setLeads(data.leads ?? []);
+      .then((r) => r.json())
+      .then((data: { leads?: Array<Record<string, unknown>> }) => {
+        const extras: LeadRow[] = (data.leads ?? [])
+          .filter((l) => typeof l.id === "string" && !String(l.id).startsWith("demo-"))
+          .map(adaptApiLead)
+          .filter((l): l is DemoLead => !!l)
+          .map((l) => ({ ...l, ownerId: defaultLeadOwner(l.id) }));
+        if (extras.length) {
+          setLeads((prev) => {
+            const ids = new Set(prev.map((p) => p.id));
+            return [...prev, ...extras.filter((e) => !ids.has(e.id))];
+          });
+        }
       })
-      .catch((e) => console.error("Failed to load leads", e))
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
+      .catch(() => {});
   }, []);
 
-  const moveLead = (leadId: string, targetStage: LeadStage) => {
-    // Optimistic UI update, then persist.
-    setLeads((prev) =>
-      prev.map((l) =>
-        l.id === leadId ? { ...l, stage: targetStage, lastContactAt: new Date().toISOString() } : l
-      )
-    );
-    setActivePopover(null);
-    fetch(`/api/leads/${encodeURIComponent(leadId)}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ stage: targetStage }),
-    }).catch((e) => {
-      console.error("Failed to persist stage move", e);
-      refresh(); // re-sync on failure
-    });
-  };
-
-  // Group leads by stage, applying search + source filter
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
-    return leads.filter((l) => {
-      if (sourceFilter !== "all" && l.source !== sourceFilter) return false;
-      if (!q) return true;
-      return (
-        l.firstName.toLowerCase().includes(q) ||
-        l.lastName.toLowerCase().includes(q) ||
-        l.vehicle.toLowerCase().includes(q) ||
-        l.interest.toLowerCase().includes(q) ||
-        l.email.toLowerCase().includes(q)
-      );
-    });
-  }, [leads, search, sourceFilter]);
+    return leads
+      .filter((l) => {
+        if (sourceFilter !== "all" && l.source !== sourceFilter) return false;
+        if (personFilter !== "all" && l.ownerId !== personFilter) return false;
+        if (!q) return true;
+        return [l.firstName, l.lastName, l.vehicle, l.interest, l.phone, l.email].join(" ").toLowerCase().includes(q);
+      })
+      .sort((a, b) => (sortDir === "desc" ? b.estimatedValue - a.estimatedValue : a.estimatedValue - b.estimatedValue));
+  }, [leads, search, sourceFilter, personFilter, sortDir]);
 
-  const leadsByStage = useMemo(() => {
-    const map = new Map<LeadStage, Lead[]>();
-    STAGES.forEach((s) => map.set(s, []));
-    filtered.forEach((l) => map.get(l.stage)!.push(l));
-    return map;
-  }, [filtered]);
+  const groups: BoardGroup<LeadRow>[] = useMemo(() => {
+    if (groupBy === "source") {
+      return SOURCE_STATUS.map((s) => ({
+        id: s.id,
+        title: s.label,
+        color: s.color,
+        items: filtered.filter((l) => l.source === s.id),
+      }));
+    }
+    if (groupBy === "owner") {
+      return STAFF.map((p) => ({
+        id: p.id,
+        title: p.name,
+        color: optionById(LEAD_STAGE_STATUS, "contacted")!.color,
+        items: filtered.filter((l) => l.ownerId === p.id),
+      })).filter((g) => g.items.length);
+    }
+    if (groupBy === "health") {
+      return HEALTH_STATUS.map((s) => ({
+        id: s.id,
+        title: s.label,
+        color: s.color,
+        items: filtered.filter((l) => l.traffic === s.id),
+      }));
+    }
+    return LEAD_STAGE_STATUS.map((s) => ({
+      id: s.id,
+      title: s.label,
+      color: s.color,
+      items: filtered.filter((l) => l.stage === s.id),
+    }));
+  }, [filtered, groupBy]);
 
-  // Stage totals — for the summary row at the top
-  const stageTotals = useMemo(() => {
-    const totals: Record<LeadStage, { count: number; value: number }> = {
-      new_lead: { count: 0, value: 0 },
-      ai_contacted: { count: 0, value: 0 },
-      responded: { count: 0, value: 0 },
-      appointment_set: { count: 0, value: 0 },
-      confirmed_sale: { count: 0, value: 0 },
+  const patch = (id: string, next: Partial<LeadRow>, undoable = true, message?: string) => {
+    const prev = leads.find((l) => l.id === id);
+    setLeads((list) => list.map((l) => (l.id === id ? { ...l, ...next } : l)));
+    if (prev && next.stage && next.stage !== prev.stage && !id.startsWith("demo-")) {
+      fetch(`/api/leads/${encodeURIComponent(id)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ stage: next.stage }),
+      }).catch(() => {});
+    }
+    if (undoable && prev && message) {
+      push(message, () => patch(id, prev, false));
+    }
+  };
+
+  const move = (id: string, toGroup: string) => {
+    const prev = leads.find((l) => l.id === id);
+    if (!prev) return;
+    if (groupBy === "stage") {
+      patch(id, { stage: toGroup as LeadStage, lastContactAt: new Date().toISOString(), daysInStage: 0, traffic: "green" }, true, `Moved ${prev.firstName} to ${LEAD_STAGE_LABELS[toGroup as LeadStage]}`);
+    } else if (groupBy === "source") {
+      patch(id, { source: toGroup as LeadSource }, true, `Source → ${LEAD_SOURCE_LABEL[toGroup as LeadSource]}`);
+    } else if (groupBy === "owner") {
+      patch(id, { ownerId: toGroup }, true, `Assigned to ${STAFF.find((s) => s.id === toGroup)?.name ?? "owner"}`);
+    } else {
+      patch(id, { traffic: toGroup as LeadRow["traffic"] }, true, "Health updated");
+    }
+  };
+
+  const addItem = (groupId?: string) => {
+    const id = `demo-l-new-${Date.now()}`;
+    const stage = groupBy === "stage" && groupId ? (groupId as LeadStage) : "new_lead";
+    const row: LeadRow = {
+      id,
+      firstName: "New",
+      lastName: "lead",
+      phone: "",
+      email: "",
+      source: groupBy === "source" && groupId ? (groupId as LeadSource) : "website",
+      vehicle: "",
+      bedSize: "",
+      color: "",
+      interest: "",
+      stage,
+      estimatedValue: 0,
+      lastContactAt: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
+      daysInStage: 0,
+      traffic: "green",
+      aiHandled: false,
+      activity: [{ id: "n", at: new Date().toISOString(), kind: "staff", title: "Created", body: "Added from the board." }],
+      ownerId: groupBy === "owner" && groupId ? groupId : "nate",
     };
-    filtered.forEach((l) => {
-      totals[l.stage].count += 1;
-      totals[l.stage].value += l.estimatedValue;
-    });
-    return totals;
-  }, [filtered]);
+    setLeads((list) => [row, ...list]);
+    setOpenId(id);
+  };
 
-  // Close popover when clicking outside
-  const popoverRef = useRef<HTMLDivElement | null>(null);
-  useEffect(() => {
-    const onClick = (e: MouseEvent) => {
-      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
-        setActivePopover(null);
-      }
-    };
-    if (activePopover) document.addEventListener("mousedown", onClick);
-    return () => document.removeEventListener("mousedown", onClick);
-  }, [activePopover]);
+  const columns: BoardColumn<LeadRow>[] = [
+    {
+      id: "stage",
+      header: "Status",
+      kind: "status",
+      width: 150,
+      getStatus: (r) => r.stage,
+      statusOptions: LEAD_STAGE_STATUS,
+      onStatus: (r, id) =>
+        patch(r.id, { stage: id as LeadStage, lastContactAt: new Date().toISOString(), daysInStage: 0, traffic: "green" }, true, `Status → ${LEAD_STAGE_LABELS[id as LeadStage]}`),
+    },
+    {
+      id: "health",
+      header: "Health",
+      kind: "status",
+      width: 130,
+      getStatus: (r) => r.traffic,
+      statusOptions: HEALTH_STATUS,
+      onStatus: (r, id) => patch(r.id, { traffic: id as LeadRow["traffic"] }),
+    },
+    {
+      id: "owner",
+      header: "Owner",
+      kind: "person",
+      width: 140,
+      getPerson: (r) => r.ownerId,
+      onPerson: (r, id) => patch(r.id, { ownerId: id }),
+    },
+    {
+      id: "source",
+      header: "Source",
+      kind: "status",
+      width: 130,
+      getStatus: (r) => r.source,
+      statusOptions: SOURCE_STATUS,
+      onStatus: (r, id) => patch(r.id, { source: id as LeadSource }),
+    },
+    {
+      id: "vehicle",
+      header: "Vehicle",
+      kind: "text",
+      width: 170,
+      getText: (r) => r.vehicle,
+      onText: (r, t) => patch(r.id, { vehicle: t }),
+    },
+    {
+      id: "contact",
+      header: "Last contact",
+      kind: "date",
+      width: 130,
+      getDate: (r) => r.lastContactAt,
+      onDate: (r, iso) => patch(r.id, { lastContactAt: iso }),
+    },
+    {
+      id: "value",
+      header: "Deal value",
+      kind: "number",
+      width: 120,
+      getNumber: (r) => r.estimatedValue,
+    },
+  ];
+
+  const open = leads.find((l) => l.id === openId) ?? null;
 
   return (
     <div>
-      <PageHeader
-        breadcrumbs={[{ label: "Suburban Toppers" }, { label: "Leads & Outreach" }]}
-        title="Leads & Outreach"
-        actions={
-          <>
-            <Button variant="outlined" leadingIcon={<Download size={16} strokeWidth={2} />}>
-              Export
-            </Button>
-            <Button
-              variant="filled"
-              leadingIcon={<Plus size={16} strokeWidth={2} />}
-              onClick={() => setShowNewLead(true)}
-            >
-              New Lead
-            </Button>
-          </>
-        }
-      />
-
-      <div style={{ padding: "0 32px 32px 32px" }}>
-        {/* === Stage Totals Strip === */}
-        <div
-          className="grid bg-paper rounded-md"
-          style={{
-            gridTemplateColumns: "repeat(5, 1fr)",
-            marginBottom: "16px",
-            boxShadow: "var(--shadow-card)",
-            overflow: "hidden",
-          }}
-        >
-          {STAGES.map((stage, i) => (
-            <div
-              key={stage}
-              style={{
-                padding: "16px 20px",
-                borderRight: i < STAGES.length - 1 ? "1px solid var(--color-chalk)" : undefined,
-              }}
-            >
-              <div className="text-slate" style={{ fontSize: "12px", fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.04em" }}>
-                {PIPELINE_STAGE_LABELS[stage]}
-              </div>
-              <div
-                className="text-carbon mt-4"
-                style={{ fontFamily: "var(--font-display)", fontSize: "22px", fontWeight: 600, lineHeight: 1.1 }}
-              >
-                {stageTotals[stage].count}
-              </div>
-              <div
-                className={stage === "confirmed_sale" ? "text-signal-orange" : "text-slate"}
-                style={{ fontSize: "13px", fontWeight: 500, marginTop: "2px" }}
-              >
-                {formatCurrency(stageTotals[stage].value)}
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* === Filter row === */}
-        <div
-          className="flex items-center bg-paper rounded-md"
-          style={{
-            padding: "12px 16px",
-            marginBottom: "16px",
-            boxShadow: "var(--shadow-card)",
-            gap: "8px",
-          }}
-        >
-          <div
-            className="flex items-center text-slate shrink-0"
-            style={{
-              gap: "6px",
-              fontSize: "13px",
-              fontWeight: 500,
-              paddingRight: "8px",
-              borderRight: "1px solid var(--color-chalk)",
-              marginRight: "4px",
-              height: "32px",
-            }}
-          >
-            <Filter size={14} strokeWidth={2} />
-            Filter
-          </div>
-          <button
-            type="button"
-            onClick={() => setSourceFilter("all")}
-            className="rounded-xl transition-colors"
-            style={{
-              height: "28px",
-              padding: "0 12px",
-              fontSize: "13px",
-              fontWeight: 500,
-              background: sourceFilter === "all" ? "var(--color-carbon)" : "var(--color-fog)",
-              color: sourceFilter === "all" ? "var(--color-paper)" : "var(--color-graphite)",
-              border: sourceFilter === "all" ? "1px solid var(--color-carbon)" : "1px solid transparent",
-              cursor: "pointer",
-            }}
-          >
-            All sources
-          </button>
-          {(Object.keys(SOURCE_LABEL) as LeadSource[]).map((src) => (
-            <button
-              key={src}
-              type="button"
-              onClick={() => setSourceFilter(src)}
-              className="rounded-xl transition-colors"
-              style={{
-                height: "28px",
-                padding: "0 12px",
-                fontSize: "13px",
-                fontWeight: 500,
-                background: sourceFilter === src ? "var(--color-carbon)" : "var(--color-fog)",
-                color: sourceFilter === src ? "var(--color-paper)" : "var(--color-graphite)",
-                border: sourceFilter === src ? "1px solid var(--color-carbon)" : "1px solid transparent",
-                cursor: "pointer",
-              }}
-            >
-              {SOURCE_LABEL[src]}
-            </button>
-          ))}
-          <div className="flex-1" />
-          <div className="relative">
-            <Search
-              size={14}
-              strokeWidth={2}
-              className="text-slate"
-              style={{ position: "absolute", left: "10px", top: "50%", transform: "translateY(-50%)" }}
-            />
-            <input
-              type="text"
-              placeholder="Search leads…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="rounded-md"
-              style={{
-                height: "32px",
-                width: "240px",
-                paddingLeft: "32px",
-                paddingRight: search ? "32px" : "12px",
-                border: "1px solid var(--color-chalk)",
-                fontSize: "13px",
-                color: "var(--color-carbon)",
-                outline: "none",
-                background: "var(--color-paper)",
-              }}
-            />
-            {search && (
-              <button
-                type="button"
-                onClick={() => setSearch("")}
-                aria-label="Clear search"
-                style={{
-                  position: "absolute",
-                  right: "8px",
-                  top: "50%",
-                  transform: "translateY(-50%)",
-                  width: "20px",
-                  height: "20px",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  background: "transparent",
-                  border: "none",
-                  cursor: "pointer",
-                  color: "var(--color-slate)",
-                }}
-              >
-                <X size={14} strokeWidth={2} />
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* === Kanban Board === */}
-        {/* Scrollable container: allows horizontal scroll on narrow viewports
-            without breaking the page layout. Each column is a fixed 280px so
-            cards don't compress and content stays readable. */}
-        <div
-          style={{
-            overflowX: "auto",
-            marginLeft: "-32px",
-            marginRight: "-32px",
-            paddingLeft: "32px",
-            paddingRight: "32px",
-            paddingBottom: "8px",
-            marginBottom: "24px",
-            scrollbarWidth: "thin",
-            scrollbarColor: "var(--color-chalk) transparent",
-          }}
-        >
-          <div
-            className="grid"
-            style={{
-              gridTemplateColumns: "repeat(5, 280px)",
-              gap: "16px",
-            }}
-          >
-          {STAGES.map((stage) => (
-            <KanbanColumn
-              key={stage}
-              stage={stage}
-              leads={leadsByStage.get(stage) ?? []}
-              totalCount={leadsByStage.get(stage)?.length ?? 0}
-              onCardClick={(id) => setActivePopover(id)}
-              activePopover={activePopover}
-              onMove={moveLead}
-              popoverRef={popoverRef}
-            />
-          ))}
-          </div>
-        </div>
-
-        {/* === Pipeline summary (StageCard row) === */}
-        <FunnelCard
-          title="Lead Pipeline"
-          subtitle={`${STAGES.reduce((sum, s) => sum + stageTotals[s].count, 0)} active leads${loading ? " · loading…" : ""}`}
-          stages={STAGES.map((s) => ({
-            label: PIPELINE_STAGE_LABELS[s],
-            count: stageTotals[s].count,
-          }))}
-        />
-      </div>
-
-      {/* === New Lead modal (POSTs to /api/leads → Sarah responds instantly) === */}
-      {showNewLead && (
-        <NewLeadModal
-          onClose={() => setShowNewLead(false)}
-          onCreated={() => {
-            setShowNewLead(false);
-            refresh();
-          }}
-        />
-      )}
-    </div>
-  );
-}
-
-// ============================================================================
-// NewLeadModal — minimal intake form; the API triggers Sarah's outreach
-// ============================================================================
-
-function NewLeadModal({
-  onClose,
-  onCreated,
-}: {
-  onClose: () => void;
-  onCreated: () => void;
-}) {
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [vehicle, setVehicle] = useState("");
-  const [interest, setInterest] = useState("");
-  const [source, setSource] = useState<LeadSource>("website");
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const submit = async () => {
-    if (!firstName.trim() || !lastName.trim()) {
-      setError("First and last name are required.");
-      return;
-    }
-    setSubmitting(true);
-    setError(null);
-    try {
-      const res = await fetch("/api/leads", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ firstName, lastName, phone, vehicle, interest, source }),
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error ?? `HTTP ${res.status}`);
-      }
-      onCreated();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to create lead");
-      setSubmitting(false);
-    }
-  };
-
-  const fieldStyle: React.CSSProperties = {
-    height: "36px",
-    width: "100%",
-    padding: "0 12px",
-    border: "1px solid var(--color-chalk)",
-    borderRadius: "6px",
-    fontSize: "13px",
-    color: "var(--color-carbon)",
-    outline: "none",
-    background: "var(--color-paper)",
-  };
-
-  return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      style={{
-        position: "fixed",
-        inset: 0,
-        zIndex: 100,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        background: "rgba(20, 20, 20, 0.4)",
-      }}
-      onClick={onClose}
-    >
-      <div
-        className="bg-paper rounded-md"
-        style={{
-          width: "420px",
-          maxWidth: "90vw",
-          padding: "24px",
-          boxShadow: "var(--shadow-card)",
+      <MondayBoard
+        title="Leads"
+        color="#fdab3d"
+        groups={groups}
+        columns={columns}
+        getName={(r) => `${r.firstName} ${r.lastName}`.trim()}
+        onRename={(r, name) => {
+          const parts = name.trim().split(/\s+/);
+          patch(r.id, { firstName: parts[0] || r.firstName, lastName: parts.slice(1).join(" ") });
         }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between" style={{ marginBottom: "16px" }}>
-          <h3
-            className="text-carbon"
-            style={{ fontFamily: "var(--font-display)", fontSize: "16px", fontWeight: 600 }}
-          >
-            New Lead
-          </h3>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close"
-            style={{ background: "transparent", border: "none", cursor: "pointer", color: "var(--color-slate)" }}
-          >
-            <X size={16} strokeWidth={2} />
-          </button>
-        </div>
-
-        <div className="flex flex-col" style={{ gap: "10px" }}>
-          <div className="grid" style={{ gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
-            <input style={fieldStyle} placeholder="First name *" value={firstName} onChange={(e) => setFirstName(e.target.value)} />
-            <input style={fieldStyle} placeholder="Last name *" value={lastName} onChange={(e) => setLastName(e.target.value)} />
-          </div>
-          <input style={fieldStyle} placeholder="Phone" value={phone} onChange={(e) => setPhone(e.target.value)} />
-          <input style={fieldStyle} placeholder="Vehicle (e.g. 2024 Ford F-150)" value={vehicle} onChange={(e) => setVehicle(e.target.value)} />
-          <input style={fieldStyle} placeholder="Interest (e.g. ARE CX Series topper)" value={interest} onChange={(e) => setInterest(e.target.value)} />
+        onMove={move}
+        onOpen={(r) => setOpenId(r.id)}
+        onNewItem={addItem}
+        newItemLabel="New lead"
+        search={search}
+        onSearch={setSearch}
+        searchPlaceholder="Search leads — try Kim or 555"
+        personFilter={personFilter}
+        onPersonFilter={setPersonFilter}
+        getPersonId={(r) => r.ownerId}
+        sortLabel={sortDir === "desc" ? "Value ↓" : "Value ↑"}
+        onSort={() => setSortDir((d) => (d === "desc" ? "asc" : "desc"))}
+        groupByLabel={groupBy}
+        groupByOptions={[
+          { id: "stage", label: "Status" },
+          { id: "source", label: "Source" },
+          { id: "owner", label: "Owner" },
+          { id: "health", label: "Health" },
+        ]}
+        onGroupBy={(id) => setGroupBy(id as GroupBy)}
+        filterSlot={
           <select
-            style={{ ...fieldStyle, cursor: "pointer" }}
-            value={source}
-            onChange={(e) => setSource(e.target.value as LeadSource)}
+            value={sourceFilter}
+            onChange={(e) => setSourceFilter(e.target.value as LeadSource | "all")}
+            style={{ height: 32, border: "1px solid var(--color-gray-150)", borderRadius: 4, padding: "0 8px", fontSize: 13, background: "white" }}
           >
-            {(Object.keys(SOURCE_LABEL) as LeadSource[]).map((s) => (
-              <option key={s} value={s}>{SOURCE_LABEL[s]}</option>
+            <option value="all">All sources</option>
+            {(Object.keys(LEAD_SOURCE_LABEL) as LeadSource[]).map((s) => (
+              <option key={s} value={s}>
+                {LEAD_SOURCE_LABEL[s]}
+              </option>
             ))}
           </select>
+        }
+        getDate={(r) => r.lastContactAt}
+        sumItems={(items) => items.reduce((s, l) => s + l.estimatedValue, 0)}
+        view={view}
+        onViewChange={setView}
+      />
 
-          {error && (
-            <div style={{ fontSize: "12px", color: "var(--color-status-red, #c0392b)" }}>{error}</div>
-          )}
-
-          <div className="flex items-center justify-between" style={{ marginTop: "6px" }}>
-            <span className="text-slate flex items-center" style={{ fontSize: "11px", gap: "4px" }}>
-              <Sparkles size={11} strokeWidth={2.5} />
-              Sarah responds instantly on creation
-            </span>
-            <div className="flex" style={{ gap: "8px" }}>
-              <Button variant="outlined" onClick={onClose}>Cancel</Button>
-              <Button variant="filled" onClick={submit} disabled={submitting}>
-                {submitting ? "Creating…" : "Create Lead"}
+      <ItemPanel
+        open={!!open}
+        title={open ? `${open.firstName} ${open.lastName}` : ""}
+        subtitle={open ? `${LEAD_STAGE_LABELS[open.stage]} · ${formatCurrency(open.estimatedValue)}` : ""}
+        onClose={() => setOpenId(null)}
+        updates={
+          open
+            ? open.activity.map((a) => ({
+                id: a.id,
+                at: a.at,
+                author: a.kind === "ai" || a.kind === "email" ? "Sarah AI" : a.kind === "customer" ? `${open.firstName} ${open.lastName}` : "Nate Brooks",
+                title: a.title,
+                body: a.body,
+              }))
+            : []
+        }
+        files={
+          open
+            ? [
+                ...(open.intakeEmail ? [{ name: `${open.firstName}-intake.eml`, size: "4 KB", kind: "doc" as const }] : []),
+                { name: `${open.vehicle || "vehicle"}-notes.pdf`, size: "128 KB", kind: "pdf" as const },
+              ]
+            : []
+        }
+        info={
+          open
+            ? [
+                { label: "Phone", value: formatPhone(open.phone) || "—" },
+                { label: "Email", value: open.email || "—" },
+                { label: "Source", value: LEAD_SOURCE_LABEL[open.source] },
+                { label: "Vehicle", value: open.vehicle || "—" },
+                { label: "Bed / color", value: `${open.bedSize || "—"} · ${open.color || "—"}` },
+                { label: "Want", value: open.interest || "—" },
+                { label: "Stage", value: LEAD_STAGE_LABELS[open.stage] },
+                { label: "Days in stage", value: String(open.daysInStage) },
+                { label: "AI intake", value: open.aiHandled ? "On" : "Human-owned" },
+              ]
+            : []
+        }
+        onAddUpdate={(text) => {
+          if (!open) return;
+          patch(open.id, {
+            activity: [
+              { id: `u-${Date.now()}`, at: new Date().toISOString(), kind: "staff", title: "Update", body: text },
+              ...open.activity,
+            ],
+          });
+        }}
+        footer={
+          open ? (
+            <Link href={`/leads/${open.id}`}>
+              <Button variant="filled" className="w-full">
+                Open full lead
               </Button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ============================================================================
-// KanbanColumn
-// ============================================================================
-
-function KanbanColumn({
-  stage,
-  leads,
-  totalCount,
-  onCardClick,
-  activePopover,
-  onMove,
-  popoverRef,
-}: {
-  stage: LeadStage;
-  leads: Lead[];
-  totalCount: number;
-  onCardClick: (id: string) => void;
-  activePopover: string | null;
-  onMove: (id: string, target: LeadStage) => void;
-  popoverRef: React.RefObject<HTMLDivElement | null>;
-}) {
-  const isConfirmed = stage === "confirmed_sale";
-
-  return (
-    <div
-      className="rounded-md flex flex-col"
-      style={{
-        background: "var(--color-paper)",
-        boxShadow: "var(--shadow-card)",
-        minHeight: "200px",
-      }}
-    >
-      {/* Column header */}
-      <div
-        className="flex items-center justify-between"
-        style={{
-          padding: "14px 16px",
-          borderBottom: "1px solid var(--color-chalk)",
-        }}
-      >
-        <div className="flex items-center" style={{ gap: "8px" }}>
-          <span
-            className="rounded-full"
-            style={{
-              width: "8px",
-              height: "8px",
-              background: isConfirmed ? "var(--color-signal-orange)" : "var(--color-graphite)",
-            }}
-          />
-          <span
-            className="text-carbon"
-            style={{ fontSize: "13px", fontWeight: 600 }}
-          >
-            {PIPELINE_STAGE_LABELS[stage]}
-          </span>
-          <span
-            className="rounded-full text-graphite"
-            style={{
-              fontSize: "11px",
-              fontWeight: 600,
-              padding: "1px 8px",
-              background: "var(--color-fog)",
-              minWidth: "20px",
-              textAlign: "center",
-            }}
-          >
-            {totalCount}
-          </span>
-        </div>
-      </div>
-
-      {/* Cards */}
-      <div
-        className="flex flex-col"
-        style={{
-          gap: "8px",
-          padding: "12px",
-          flex: 1,
-        }}
-      >
-        {leads.length === 0 ? (
-          <div
-            className="text-slate text-center"
-            style={{ fontSize: "12px", padding: "20px 8px", fontStyle: "italic" }}
-          >
-            No leads in this stage
-          </div>
-        ) : (
-          leads.map((lead) => (
-            <LeadCard
-              key={lead.id}
-              lead={lead}
-              activePopover={activePopover}
-              onClick={() => onCardClick(lead.id)}
-              onMove={onMove}
-              popoverRef={popoverRef}
-            />
-          ))
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ============================================================================
-// LeadCard
-// ============================================================================
-
-function LeadCard({
-  lead,
-  activePopover,
-  onClick,
-  onMove,
-  popoverRef,
-}: {
-  lead: Lead;
-  activePopover: string | null;
-  onClick: () => void;
-  onMove: (id: string, target: LeadStage) => void;
-  popoverRef: React.RefObject<HTMLDivElement | null>;
-}) {
-  const isPopoverOpen = activePopover === lead.id;
-  const lastMessage = lead.conversation[lead.conversation.length - 1];
-
-  return (
-    <div style={{ position: "relative" }}>
-      <div
-        role="button"
-        tabIndex={0}
-        onClick={onClick}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            onClick();
-          }
-        }}
-        className="text-left rounded-md transition-shadow w-full"
-        style={{
-          padding: "12px",
-          background: "var(--color-fog)",
-          border: "1px solid transparent",
-          cursor: "pointer",
-          transition: "background 120ms, border-color 120ms",
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.background = "var(--color-paper)";
-          e.currentTarget.style.borderColor = "var(--color-chalk)";
-          e.currentTarget.style.boxShadow = "var(--shadow-card)";
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.background = "var(--color-fog)";
-          e.currentTarget.style.borderColor = "transparent";
-          e.currentTarget.style.boxShadow = "none";
-        }}
-      >
-        {/* Name + value */}
-        <div className="flex items-start justify-between" style={{ marginBottom: "6px" }}>
-          <div className="text-carbon" style={{ fontSize: "13px", fontWeight: 600, lineHeight: 1.2 }}>
-            {lead.firstName} {lead.lastName}
-          </div>
-          <div
-            className="text-carbon shrink-0"
-            style={{ fontSize: "13px", fontWeight: 600, marginLeft: "8px" }}
-          >
-            {formatCurrency(lead.estimatedValue)}
-          </div>
-        </div>
-
-        {/* Vehicle + interest */}
-        <div className="flex items-center text-slate" style={{ gap: "4px", marginBottom: "4px" }}>
-          <Car size={11} strokeWidth={2} />
-          <span style={{ fontSize: "11px", lineHeight: 1.2 }}>{lead.vehicle}</span>
-        </div>
-        <div
-          className="text-graphite truncate"
-          style={{ fontSize: "11px", lineHeight: 1.2, marginBottom: "8px" }}
-        >
-          {lead.interest}
-        </div>
-
-        {/* Source + AI badge */}
-        <div className="flex items-center justify-between">
-          <span
-            className="rounded-md text-graphite"
-            style={{
-              fontSize: "10px",
-              fontWeight: 600,
-              padding: "2px 6px",
-              background: "var(--color-chalk)",
-              textTransform: "uppercase",
-              letterSpacing: "0.04em",
-            }}
-          >
-            {SOURCE_LABEL[lead.source]}
-          </span>
-          {lead.aiHandled && (
-            <span
-              className="flex items-center"
-              style={{
-                fontSize: "10px",
-                fontWeight: 600,
-                color: "var(--color-signal-orange)",
-                gap: "2px",
-              }}
-            >
-              <Sparkles size={10} strokeWidth={2.5} />
-              AI
-            </span>
-          )}
-        </div>
-
-        {/* Last message preview (if any) */}
-        {lastMessage && (
-          <div
-            className="text-slate truncate"
-            style={{
-              fontSize: "11px",
-              lineHeight: 1.2,
-              marginTop: "6px",
-              fontStyle: "italic",
-              opacity: 0.8,
-            }}
-          >
-            &ldquo;{lastMessage.text}&rdquo;
-          </div>
-        )}
-      </div>
-
-      {/* Move-to popover */}
-      {isPopoverOpen && (
-        <div
-          ref={popoverRef}
-          className="rounded-md"
-          style={{
-            position: "absolute",
-            top: "100%",
-            left: "0",
-            right: "0",
-            marginTop: "4px",
-            background: "var(--color-paper)",
-            border: "1px solid var(--color-chalk)",
-            boxShadow: "var(--shadow-card)",
-            zIndex: 50,
-            padding: "4px",
-          }}
-        >
-          <div
-            className="text-slate"
-            style={{
-              fontSize: "10px",
-              fontWeight: 600,
-              textTransform: "uppercase",
-              letterSpacing: "0.04em",
-              padding: "6px 8px 4px",
-            }}
-          >
-            Move to stage
-          </div>
-          {STAGES.filter((s) => s !== lead.stage).map((target) => (
-            <button
-              key={target}
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onMove(lead.id, target);
-              }}
-              className="w-full flex items-center text-carbon rounded-md transition-colors"
-              style={{
-                padding: "8px",
-                fontSize: "12px",
-                background: "transparent",
-                border: "none",
-                cursor: "pointer",
-                gap: "8px",
-                textAlign: "left",
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = "var(--color-fog)")}
-              onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-            >
-              <span
-                className="rounded-full shrink-0"
-                style={{
-                  width: "8px",
-                  height: "8px",
-                  background:
-                    target === "confirmed_sale" ? "var(--color-signal-orange)" : "var(--color-graphite)",
-                }}
-              />
-              <span style={{ flex: 1 }}>{PIPELINE_STAGE_LABELS[target]}</span>
-              <ArrowRight size={12} strokeWidth={2} className="text-slate" />
-            </button>
-          ))}
-        </div>
-      )}
+            </Link>
+          ) : null
+        }
+      />
     </div>
   );
 }
