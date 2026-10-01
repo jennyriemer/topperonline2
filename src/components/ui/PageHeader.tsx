@@ -44,7 +44,7 @@ export function PageHeader({ breadcrumbs, title, actions, subtitle }: PageHeader
             })}
           </nav>
         )}
-        <h1 className="font-display text-ink truncate" style={{ fontSize: "24px", lineHeight: "30px" }}>
+        <h1 className="font-display text-ink truncate" style={{ fontSize: "22px", lineHeight: "28px" }}>
           {title}
         </h1>
         {subtitle && (
@@ -60,9 +60,9 @@ export function PageHeader({ breadcrumbs, title, actions, subtitle }: PageHeader
               height: 22,
               padding: "0 8px",
               fontSize: 12,
-              fontWeight: 500,
-              background: "var(--color-yellow-100)",
-              color: "var(--color-yellow-700)",
+              fontWeight: 700,
+              background: "var(--color-yellow-400)",
+              color: "#323338",
             }}
           >
             Demo data

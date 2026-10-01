@@ -1,11 +1,13 @@
 import { cn, getInitials } from "@/lib/utils";
 
 const PALETTES = [
-  { bg: "#DCE7F7", fg: "#0B3E85" },
-  { bg: "#F1EAFF", fg: "#6A3FD1" },
-  { bg: "#E0FCED", fg: "#007D53" },
-  { bg: "#FFF4BF", fg: "#8A7200" },
-  { bg: "#E0F6FC", fg: "#007A9C" },
+  { bg: "#579bfc", fg: "#fff" },
+  { bg: "#a25ddc", fg: "#fff" },
+  { bg: "#00c875", fg: "#fff" },
+  { bg: "#fdab3d", fg: "#fff" },
+  { bg: "#007eb5", fg: "#fff" },
+  { bg: "#e2445c", fg: "#fff" },
+  { bg: "#ffcb00", fg: "#323338" },
 ];
 
 export function Avatar({

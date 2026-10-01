@@ -1,7 +1,7 @@
 import { forwardRef, type ButtonHTMLAttributes, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
-export type ButtonVariant = "filled" | "outlined" | "ghost" | "report" | "accent" | "dark";
+export type ButtonVariant = "filled" | "outlined" | "ghost" | "report" | "accent" | "dark" | "success";
 export type ButtonSize = "sm" | "md";
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -42,6 +42,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
     report: "bg-brand-600 text-white hover:bg-brand-700 shadow-sm",
     accent: "bg-yellow-400 text-ink hover:bg-yellow-500",
     dark: "bg-ink text-white hover:bg-gray-900",
+    success: "text-white shadow-sm hover:opacity-90",
   }[variant];
 
   return (
@@ -62,6 +63,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
         fontSize: `${s.fontSize}px`,
         gap: "6px",
         lineHeight: 1.2,
+        background: variant === "success" ? "#00c875" : undefined,
       }}
       {...rest}
     >

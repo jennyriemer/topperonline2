@@ -30,7 +30,7 @@ export function Card({ children, padding = 24, hoverable, className, style, ...r
   return (
     <div
       className={cn(
-        "bg-paper rounded-xl",
+        "bg-paper rounded-lg",
         hoverable && "transition-shadow hover:shadow-card-hover cursor-pointer",
         className
       )}

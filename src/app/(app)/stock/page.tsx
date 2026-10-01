@@ -42,7 +42,7 @@ export default async function StockPage() {
         }
       />
 
-      <div style={{ padding: "0 32px 32px 32px" }}>
+      <div style={{ padding: "16px 16px 32px" }}>
         <Suspense fallback={<TabFallback />}>
           <StockTabs inHouseOrders={inHouseOrders} tradeIns={tradeIns} inventory={inventory} />
         </Suspense>

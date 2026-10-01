@@ -10,36 +10,36 @@ interface StatusBadgeProps {
   className?: string;
 }
 
-const STYLES: Record<StatusVariant, { bg: string; fg: string; dot: string }> = {
-  green: { bg: "var(--color-success-bg)", fg: "var(--color-success-fg)", dot: "var(--color-success)" },
-  amber: { bg: "var(--color-warning-bg)", fg: "var(--color-warning-fg)", dot: "var(--color-warning)" },
-  yellow: { bg: "var(--color-yellow-100)", fg: "var(--color-yellow-700)", dot: "var(--color-yellow-400)" },
-  red: { bg: "var(--color-danger-bg)", fg: "var(--color-danger-fg)", dot: "var(--color-danger)" },
-  blue: { bg: "var(--color-info-bg)", fg: "var(--color-info-fg)", dot: "var(--color-brand-600)" },
-  purple: { bg: "var(--color-purple-bg)", fg: "var(--color-purple-fg)", dot: "var(--color-purple)" },
-  neutral: { bg: "var(--color-gray-100)", fg: "var(--color-gray-700)", dot: "var(--color-gray-500)" },
+const STYLES: Record<StatusVariant, { bg: string; fg: string }> = {
+  green: { bg: "#00c875", fg: "#ffffff" },
+  amber: { bg: "#fdab3d", fg: "#ffffff" },
+  yellow: { bg: "#ffcb00", fg: "#323338" },
+  red: { bg: "#e2445c", fg: "#ffffff" },
+  blue: { bg: "#579bfc", fg: "#ffffff" },
+  purple: { bg: "#a25ddc", fg: "#ffffff" },
+  neutral: { bg: "#c4c4c4", fg: "#323338" },
 };
 
 export function StatusBadge({
   variant = "green",
-  withDot = true,
+  withDot = false,
   children,
   className,
 }: StatusBadgeProps) {
   const s = STYLES[variant] ?? STYLES.neutral;
   return (
     <span
-      className={cn("inline-flex items-center font-medium", className)}
+      className={cn("inline-flex items-center font-semibold", className)}
       style={{
-        height: "22px",
-        paddingLeft: withDot ? "8px" : "8px",
-        paddingRight: "8px",
-        borderRadius: "6px",
+        height: 22,
+        paddingLeft: 8,
+        paddingRight: 8,
+        borderRadius: 4,
         background: s.bg,
         color: s.fg,
-        fontSize: "12px",
+        fontSize: 12,
         lineHeight: 1,
-        gap: "6px",
+        gap: 6,
         whiteSpace: "nowrap",
       }}
     >
@@ -50,8 +50,9 @@ export function StatusBadge({
             width: 6,
             height: 6,
             borderRadius: "50%",
-            background: s.dot,
+            background: s.fg,
             flexShrink: 0,
+            opacity: 0.9,
           }}
         />
       )}

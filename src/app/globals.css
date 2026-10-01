@@ -1,116 +1,132 @@
 @import "tailwindcss";
 
 /* =============================================================================
- * Suburban Toppers CRM — Attio-inspired tokens, brand blue + yellow.
+ * Suburban Toppers CRM — monday.com-inspired board UI
+ * Chrome: brand blue #0E4CA1 + yellow #FFD504
+ * Labels: monday vivid status colors
+ * Font: Figtree
  * ============================================================================= */
 
 @theme {
-  --color-brand-50: #EEF4FC;
-  --color-brand-100: #DCE7F7;
-  --color-brand-200: #B6CDEE;
+  --color-brand-50: #E8F0FA;
+  --color-brand-100: #D2E1F5;
+  --color-brand-200: #A6C3EB;
   --color-brand-400: #4F82CB;
   --color-brand-500: #1F5DB4;
   --color-brand-600: #0E4CA1;
   --color-brand-700: #0B3E85;
   --color-link: #1357A9;
-  --color-yellow-100: #FFF4BF;
+  --color-yellow-100: #FFF6C2;
   --color-yellow-400: #FFD504;
   --color-yellow-500: #E6BF00;
   --color-yellow-700: #8A7200;
-  --color-charcoal: #414042;
+  --color-charcoal: #323338;
 
   --color-gray-0: #FFFFFF;
-  --color-gray-25: #FAFAFB;
-  --color-gray-50: #F3F4F6;
-  --color-gray-100: #EDEFF3;
-  --color-gray-150: #E4E7EC;
-  --color-gray-200: #D3D8DF;
-  --color-gray-300: #CAD0D9;
-  --color-gray-400: #A4ADBA;
-  --color-gray-500: #8F99A8;
-  --color-gray-600: #6F7988;
-  --color-gray-700: #505967;
-  --color-gray-900: #232529;
-  --color-ink: #1C1D1F;
+  --color-gray-25: #F6F7FB;
+  --color-gray-50: #F0F1F5;
+  --color-gray-100: #E6E9EF;
+  --color-gray-150: #D0D4E4;
+  --color-gray-200: #C5C7D0;
+  --color-gray-300: #B2B6C6;
+  --color-gray-400: #9699A6;
+  --color-gray-500: #676879;
+  --color-gray-600: #505268;
+  --color-gray-700: #323338;
+  --color-gray-900: #1C1F3B;
+  --color-ink: #323338;
 
-  --color-success: #0FC27B;
-  --color-success-bg: #E0FCED;
-  --color-success-fg: #007D53;
-  --color-warning: #F5B900;
-  --color-warning-bg: #FFF4BF;
-  --color-warning-fg: #8A6A00;
-  --color-danger: #FF5B59;
-  --color-danger-bg: #FFE8E8;
-  --color-danger-fg: #C23A38;
-  --color-info: #0E4CA1;
-  --color-info-bg: #DCE7F7;
-  --color-info-fg: #0B3E85;
-  --color-purple: #9B69FF;
-  --color-purple-bg: #F1EAFF;
-  --color-purple-fg: #6A3FD1;
-  --color-pink: #E5489A;
-  --color-pink-bg: #FDE7F2;
-  --color-pink-fg: #B02A70;
-  --color-teal: #00B5E6;
-  --color-teal-bg: #E0F6FC;
-  --color-teal-fg: #007A9C;
-  --color-rec-green: #03B071;
-  --color-rec-orange: #FC811F;
+  --color-success: #00c875;
+  --color-success-bg: #E3FDEC;
+  --color-success-fg: #007F4B;
+  --color-warning: #fdab3d;
+  --color-warning-bg: #FFF3E0;
+  --color-warning-fg: #C47A12;
+  --color-danger: #e2445c;
+  --color-danger-bg: #FDE8EC;
+  --color-danger-fg: #C0213A;
+  --color-info: #579bfc;
+  --color-info-bg: #E8F1FE;
+  --color-info-fg: #1F6AD6;
+  --color-purple: #a25ddc;
+  --color-purple-bg: #F4E9FB;
+  --color-purple-fg: #7A35B8;
+  --color-pink: #ff5ac4;
+  --color-pink-bg: #FDE7F6;
+  --color-pink-fg: #C21A8A;
+  --color-teal: #007eb5;
+  --color-teal-bg: #E0F3FB;
+  --color-teal-fg: #00648F;
+  --color-rec-green: #00c875;
+  --color-rec-orange: #fdab3d;
 
-  /* Legacy aliases so existing class names restyle without a sweep */
   --color-signal-orange: #0E4CA1;
   --color-sienna-bronze: #8A7200;
-  --color-carbon: #1C1D1F;
-  --color-graphite: #6F7988;
-  --color-slate: #8F99A8;
-  --color-fog: #F3F4F6;
-  --color-mist: #FAFAFB;
-  --color-chalk: #E4E7EC;
+  --color-carbon: #323338;
+  --color-graphite: #676879;
+  --color-slate: #9699A6;
+  --color-fog: #F0F1F5;
+  --color-mist: #F6F7FB;
+  --color-chalk: #D0D4E4;
   --color-paper: #FFFFFF;
-  --color-canvas: #FAFAFB;
+  --color-canvas: #F6F7FB;
   --color-surface: #FFFFFF;
-  --color-inset: #F3F4F6;
-  --color-divider: #E4E7EC;
+  --color-inset: #F0F1F5;
+  --color-divider: #D0D4E4;
 
-  --color-status-green: #0FC27B;
-  --color-status-amber: #F5B900;
-  --color-status-red: #FF5B59;
-  --color-status-blue: #0E4CA1;
-  --color-status-purple: #9B69FF;
+  --color-status-green: #00c875;
+  --color-status-amber: #fdab3d;
+  --color-status-red: #e2445c;
+  --color-status-blue: #579bfc;
+  --color-status-purple: #a25ddc;
 
-  --font-display: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
-  --font-inter: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --color-mon-green: #00c875;
+  --color-mon-orange: #fdab3d;
+  --color-mon-red: #e2445c;
+  --color-mon-blue: #579bfc;
+  --color-mon-purple: #a25ddc;
+  --color-mon-yellow: #ffcb00;
+  --color-mon-lime: #9cd326;
+  --color-mon-sky: #007eb5;
+  --color-mon-gray: #c4c4c4;
+
+  --font-display: var(--font-figtree), "Poppins", ui-sans-serif, system-ui, sans-serif;
+  --font-inter: var(--font-figtree), "Poppins", ui-sans-serif, system-ui, sans-serif;
+  --font-figtree: var(--font-figtree), "Poppins", ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-jetbrains), ui-monospace, SFMono-Regular, Menlo, monospace;
 
   --radius-sm: 4px;
-  --radius-md: 6px;
+  --radius-md: 8px;
   --radius-lg: 8px;
   --radius-xl: 12px;
   --radius-2xl: 16px;
   --radius-full: 9999px;
 
-  --shadow-xs: 0 1px 2px 0 rgba(16, 24, 40, 0.04);
-  --shadow-sm: 0 0 0 1px rgba(11, 13, 24, 0.06), 0 1px 2px rgba(11, 13, 24, 0.024), 0 3px 6px rgba(11, 13, 24, 0.03);
-  --shadow-md: 0 0 1px 1px rgba(0, 22, 62, 0.01), 0 4px 12px -1px rgba(0, 22, 62, 0.04), 0 1px 3px -1px rgba(0, 22, 62, 0.18);
-  --shadow-lg: 0 1px 3px oklch(0 0 0 / 0.01), 0 2px 4px -1px oklch(0 0 0 / 0.02), 0 4px 8px -2px oklch(0 0 0 / 0.03), 0 8px 16px -4px oklch(0 0 0 / 0.04), 0 16px 32px -8px oklch(0 0 0 / 0.05);
-  --shadow-card: 0 1px 2px 0 rgba(16, 24, 40, 0.04);
-  --shadow-card-hover: 0 0 1px 1px rgba(0, 22, 62, 0.01), 0 4px 12px -1px rgba(0, 22, 62, 0.04);
+  --shadow-xs: 0 1px 2px rgba(50, 51, 56, 0.06);
+  --shadow-sm: 0 4px 8px rgba(50, 51, 56, 0.04), 0 0 1px rgba(50, 51, 56, 0.12);
+  --shadow-md: 0 8px 16px rgba(50, 51, 56, 0.08), 0 0 1px rgba(50, 51, 56, 0.12);
+  --shadow-lg: 0 15px 50px rgba(0, 0, 0, 0.12);
+  --shadow-card: 0 4px 8px rgba(50, 51, 56, 0.04), 0 0 1px rgba(50, 51, 56, 0.12);
+  --shadow-card-hover: 0 8px 16px rgba(50, 51, 56, 0.08);
   --ease-attio: cubic-bezier(0.2, 0, 0, 1);
+  --ease-monday: cubic-bezier(0.2, 0, 0, 1);
 }
 
 :root {
-  --shadow-card: 0 1px 2px 0 rgba(16, 24, 40, 0.04);
-  --shadow-card-hover: 0 0 1px 1px rgba(0, 22, 62, 0.01), 0 4px 12px -1px rgba(0, 22, 62, 0.04);
+  --shadow-card: 0 4px 8px rgba(50, 51, 56, 0.04), 0 0 1px rgba(50, 51, 56, 0.12);
+  --shadow-card-hover: 0 8px 16px rgba(50, 51, 56, 0.08);
   --ease-attio: cubic-bezier(0.2, 0, 0, 1);
+  --sidebar-w: 260px;
+  --sidebar-collapsed: 64px;
+  --topbar-h: 48px;
 }
 
 html, body {
   background: var(--color-canvas);
   color: var(--color-ink);
-  font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
-  font-weight: 500;
-  letter-spacing: -0.005em;
-  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  font-family: var(--font-figtree), "Poppins", ui-sans-serif, system-ui, sans-serif;
+  font-weight: 400;
+  letter-spacing: 0;
 }
 
 body {
@@ -120,11 +136,9 @@ body {
 }
 
 .font-display {
-  font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
-  font-optical-sizing: auto;
-  font-variation-settings: "opsz" 32;
-  font-weight: 600;
-  letter-spacing: -0.02em;
+  font-family: var(--font-figtree), "Poppins", ui-sans-serif, system-ui, sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.01em;
 }
 
 .font-mono, .tabular {
@@ -138,7 +152,7 @@ body {
 
 :focus-visible {
   outline: none;
-  box-shadow: 0 0 0 3px rgba(14, 76, 161, 0.3);
+  box-shadow: 0 0 0 3px rgba(87, 155, 252, 0.45);
 }
 
 button { font-family: inherit; cursor: pointer; }
@@ -146,20 +160,28 @@ button:disabled { cursor: not-allowed; }
 
 a { color: inherit; }
 
-* { transition-timing-function: var(--ease-attio); }
-
-html[data-sidebar="collapsed"] main { padding-left: 56px; }
+html[data-sidebar="collapsed"] main { padding-left: var(--sidebar-collapsed); }
 html[data-sidebar="expanded"] main,
-html:not([data-sidebar]) main { padding-left: 240px; }
+html:not([data-sidebar]) main { padding-left: var(--sidebar-w); }
 
 @media (max-width: 768px) {
   html[data-sidebar="collapsed"] main,
   html[data-sidebar="expanded"] main,
   html:not([data-sidebar]) main { padding-left: 0; }
+
+  .st-sidebar {
+    transform: translateX(-100%);
+    width: 260px !important;
+  }
+  html[data-sidebar="expanded"] .st-sidebar {
+    transform: translateX(0);
+  }
+  .st-nav-backdrop { display: none; }
+  html[data-sidebar="expanded"] .st-nav-backdrop { display: block; }
 }
 
 .kanban-lift {
-  transform: scale(1.02) rotate(1deg);
+  transform: scale(1.03) rotate(1.5deg);
   box-shadow: var(--shadow-lg);
 }
 
@@ -175,3 +197,12 @@ html:not([data-sidebar]) main { padding-left: 240px; }
   75% { transform: translateX(8px); }
 }
 .shake { animation: shake 0.4s ease-in-out; }
+
+.monday-cell {
+  border-right: 1px solid var(--color-gray-100);
+  min-height: 36px;
+}
+
+.monday-row:hover .monday-sticky {
+  background: #f5f6f8;
+}

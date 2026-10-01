@@ -57,7 +57,7 @@ export default function PhoneAgentPage() {
         }
       />
 
-      <div style={{ padding: "0 32px 40px 32px" }}>
+      <div style={{ padding: "16px 16px 40px" }}>
         <SampleBanner>
           Clickable mock of the voice agent. Confirm make, bed size, and color out loud. Summary is
           forwarded to the team for <strong>manual</strong> lead creation.

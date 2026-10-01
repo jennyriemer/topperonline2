@@ -72,63 +72,73 @@ export default function PinEntryPage() {
   };
 
   return (
-    <div
-      className="min-h-screen flex items-center justify-center p-4"
-      style={{ background: "linear-gradient(180deg, var(--color-brand-50) 0%, var(--color-gray-25) 48%, #fff 100%)" }}
-    >
+    <div className="min-h-screen flex items-center justify-center p-4" style={{ background: "#F6F7FB" }}>
       <div className="w-full" style={{ maxWidth: 400 }}>
-        <div className="text-center" style={{ marginBottom: 24 }}>
-          <div
-            className="inline-flex items-center justify-center"
-            style={{ width: 56, height: 56, borderRadius: 12, background: "#0E4CA1", marginBottom: 16 }}
-          >
-            <img src="/suburban-toppers-logo.svg" alt="Suburban Toppers" width={48} height={16} />
-          </div>
-          <h1 className="font-display" style={{ fontSize: 24 }}>Suburban Toppers</h1>
-          <p className="text-gray-600" style={{ fontSize: 14, marginTop: 4 }}>Enter your 4-digit PIN to continue</p>
-        </div>
-
         <div
-          className="bg-white"
-          style={{ borderRadius: 16, padding: 32, boxShadow: "var(--shadow-lg)", border: "1px solid var(--color-gray-150)" }}
+          className="overflow-hidden bg-white"
+          style={{ borderRadius: 12, boxShadow: "var(--shadow-lg)", border: "1px solid var(--color-gray-150)" }}
         >
-          <div className="flex justify-center" style={{ gap: 12, marginBottom: 20 }}>
-            {pin.map((digit, index) => (
-              <input
-                key={index}
-                ref={inputRefs[index]}
-                type="text"
-                inputMode="numeric"
-                maxLength={1}
-                value={digit}
-                onChange={(e) => handleChange(index, e.target.value)}
-                onKeyDown={(e) => handleKeyDown(index, e)}
-                onPaste={index === 0 ? handlePaste : undefined}
-                disabled={isSubmitting}
-                className={error ? "shake" : ""}
-                style={{
-                  width: 48,
-                  height: 56,
-                  textAlign: "center",
-                  fontSize: 24,
-                  fontWeight: 600,
-                  borderRadius: 10,
-                  border: error ? "1.5px solid var(--color-danger)" : digit ? "1.5px solid var(--color-brand-600)" : "1px solid var(--color-gray-200)",
-                  background: error ? "var(--color-danger-bg)" : digit ? "var(--color-brand-50)" : "white",
-                  outline: "none",
-                }}
-                aria-label={`PIN digit ${index + 1}`}
-              />
-            ))}
-          </div>
-          {error && (
-            <div className="text-center" style={{ color: "var(--color-danger-fg)", fontSize: 13, marginBottom: 8 }}>
-              Incorrect PIN. Please try again.
+          <div style={{ background: "#0E4CA1", padding: "28px 24px 22px", color: "white", textAlign: "center" }}>
+            <div
+              className="inline-flex items-center justify-center font-display"
+              style={{
+                width: 48,
+                height: 48,
+                borderRadius: 10,
+                background: "#FFD504",
+                color: "#0E4CA1",
+                fontSize: 16,
+                fontWeight: 800,
+                marginBottom: 12,
+              }}
+            >
+              ST
             </div>
-          )}
-          <p className="text-center text-gray-500" style={{ fontSize: 13 }}>
-            {isSubmitting ? "Verifying…" : "Enter 4 digits"}
-          </p>
+            <h1 className="font-display" style={{ fontSize: 22 }}>
+              Suburban Toppers
+            </h1>
+            <p style={{ fontSize: 13, opacity: 0.85, marginTop: 4 }}>CRM workspace · enter PIN</p>
+          </div>
+
+          <div style={{ padding: 28 }}>
+            <div className="flex justify-center" style={{ gap: 10, marginBottom: 18 }}>
+              {pin.map((digit, index) => (
+                <input
+                  key={index}
+                  ref={inputRefs[index]}
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={1}
+                  value={digit}
+                  onChange={(e) => handleChange(index, e.target.value)}
+                  onKeyDown={(e) => handleKeyDown(index, e)}
+                  onPaste={index === 0 ? handlePaste : undefined}
+                  disabled={isSubmitting}
+                  className={error ? "shake" : ""}
+                  style={{
+                    width: 52,
+                    height: 56,
+                    textAlign: "center",
+                    fontSize: 24,
+                    fontWeight: 700,
+                    borderRadius: 8,
+                    border: error ? "2px solid #e2445c" : digit ? "2px solid #00c875" : "1px solid var(--color-gray-200)",
+                    background: error ? "#FDE8EC" : digit ? "#E3FDEC" : "white",
+                    outline: "none",
+                  }}
+                  aria-label={`PIN digit ${index + 1}`}
+                />
+              ))}
+            </div>
+            {error && (
+              <div className="text-center" style={{ color: "#C0213A", fontSize: 13, marginBottom: 8, fontWeight: 600 }}>
+                Incorrect PIN. Please try again.
+              </div>
+            )}
+            <p className="text-center text-gray-500" style={{ fontSize: 13 }}>
+              {isSubmitting ? "Opening workspace…" : "4-digit shop PIN"}
+            </p>
+          </div>
         </div>
         <p className="text-center text-gray-500" style={{ marginTop: 20, fontSize: 13 }}>
           Contact your administrator if you&apos;ve forgotten your PIN

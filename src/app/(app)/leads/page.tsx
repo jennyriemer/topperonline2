@@ -2,233 +2,32 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Car, Filter, Mail, MessageSquare, Plus } from "lucide-react";
-import { PageHeader, Button, Avatar } from "@/components/ui";
-import { TrafficLightDot } from "@/components/ui/TrafficLight";
-import { SampleBanner } from "@/components/demo/SampleBadge";
-import { DndKanban, KanbanCardShell } from "@/components/kanban/DndKanban";
+import { MondayBoard, ItemPanel, type BoardColumn, type BoardGroup, type BoardView } from "@/components/board";
+import { Button } from "@/components/ui";
 import { useToast } from "@/components/layout/Toast";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatPhone } from "@/lib/utils";
 import {
   DEMO_LEADS,
   LEAD_SOURCE_LABEL,
   LEAD_STAGE_LABELS,
   LEAD_STAGES,
   LEGACY_LEAD_STAGE_MAP,
-  NUDGE_AFTER_DAYS,
-  TRAFFIC_RED_DAYS,
-  TRAFFIC_YELLOW_DAYS,
   type DemoLead,
   type LeadSource,
   type LeadStage,
 } from "@/lib/demo/crm";
+import {
+  HEALTH_STATUS,
+  LEAD_STAGE_STATUS,
+  SOURCE_STATUS,
+  defaultLeadOwner,
+  optionById,
+  STAFF,
+} from "@/lib/monday";
 
-const STAGE_DOT: Record<LeadStage, string> = {
-  new_lead: "#8F99A8",
-  contacted: "#0E4CA1",
-  conversation: "#9B69FF",
-  sale_pending: "#F5B900",
-  in_order: "#0FC27B",
-};
+type LeadRow = DemoLead & { ownerId: string };
 
-const SOURCE_PILL: Record<LeadSource, { bg: string; fg: string }> = {
-  website: { bg: "var(--color-info-bg)", fg: "var(--color-info-fg)" },
-  phone_call: { bg: "var(--color-success-bg)", fg: "var(--color-success-fg)" },
-  walk_in: { bg: "var(--color-purple-bg)", fg: "var(--color-purple-fg)" },
-  referral: { bg: "var(--color-yellow-100)", fg: "var(--color-yellow-700)" },
-  google_ads: { bg: "var(--color-pink-bg)", fg: "var(--color-pink-fg)" },
-  facebook: { bg: "var(--color-teal-bg)", fg: "var(--color-teal-fg)" },
-};
-
-export default function LeadsPage() {
-  const [leads, setLeads] = useState<DemoLead[]>(DEMO_LEADS);
-  const [sourceFilter, setSourceFilter] = useState<LeadSource | "all">("all");
-  const [search, setSearch] = useState("");
-  const { push } = useToast();
-
-  useEffect(() => {
-    fetch("/api/leads")
-      .then((r) => r.json())
-      .then((data: { leads?: Array<Record<string, unknown>> }) => {
-        const extras: DemoLead[] = (data.leads ?? [])
-          .filter((l) => typeof l.id === "string" && !String(l.id).startsWith("demo-"))
-          .map(adaptApiLead)
-          .filter((l): l is DemoLead => !!l);
-        if (extras.length) {
-          setLeads((prev) => {
-            const ids = new Set(prev.map((p) => p.id));
-            return [...prev, ...extras.filter((e) => !ids.has(e.id))];
-          });
-        }
-      })
-      .catch(() => {});
-  }, []);
-
-  const filtered = useMemo(() => {
-    const q = search.toLowerCase();
-    return leads.filter((l) => {
-      if (sourceFilter !== "all" && l.source !== sourceFilter) return false;
-      if (!q) return true;
-      return [l.firstName, l.lastName, l.vehicle, l.interest, l.phone, l.email].join(" ").toLowerCase().includes(q);
-    });
-  }, [leads, search, sourceFilter]);
-
-  const byStage = useMemo(() => {
-    const map = new Map<LeadStage, DemoLead[]>();
-    LEAD_STAGES.forEach((s) => map.set(s, []));
-    filtered.forEach((l) => map.get(l.stage)?.push(l));
-    return map;
-  }, [filtered]);
-
-  const move = (id: string, stage: LeadStage, undoable = true) => {
-    const prev = leads.find((l) => l.id === id);
-    setLeads((list) =>
-      list.map((l) => (l.id === id ? { ...l, stage, lastContactAt: new Date().toISOString(), daysInStage: 0, traffic: "green" } : l))
-    );
-    if (!id.startsWith("demo-")) {
-      fetch(`/api/leads/${encodeURIComponent(id)}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ stage }),
-      }).catch(() => {});
-    }
-    if (undoable && prev) {
-      push(`Moved ${prev.firstName} ${prev.lastName} to ${LEAD_STAGE_LABELS[stage]}`, () => move(id, prev.stage, false));
-    }
-  };
-
-  const columns = LEAD_STAGES.map((stage) => {
-    const items = byStage.get(stage) ?? [];
-    return {
-      id: stage,
-      title: LEAD_STAGE_LABELS[stage],
-      dot: STAGE_DOT[stage],
-      items,
-      sum: items.reduce((s, l) => s + l.estimatedValue, 0),
-    };
-  });
-
-  return (
-    <div>
-      <PageHeader
-        breadcrumbs={[{ label: "Pipelines" }, { label: "Leads & Outreach" }]}
-        title="Leads pipeline"
-        subtitle={`New → Contacted → Conversation → Sale pending → In order. Green under ${TRAFFIC_YELLOW_DAYS}d, yellow ${TRAFFIC_YELLOW_DAYS}–${TRAFFIC_RED_DAYS - 1}, red at ${TRAFFIC_RED_DAYS}+. Nudge after ${NUDGE_AFTER_DAYS} quiet days.`}
-        actions={
-          <Link href="/leads/demo-l-01">
-            <Button variant="filled" leadingIcon={<Plus size={14} />}>
-              Open a sample lead
-            </Button>
-          </Link>
-        }
-      />
-
-      <div style={{ padding: "20px 24px 40px" }}>
-        <SampleBanner>
-          “AI Contacted” is gone as a column. Website intake email is activity at New lead, signed as an AI agent on behalf of Suburban Toppers.
-        </SampleBanner>
-
-        <div className="flex items-center flex-wrap bg-white" style={{ padding: 10, marginBottom: 16, borderRadius: 12, border: "1px solid var(--color-gray-150)", gap: 8 }}>
-          <span className="text-gray-500 flex items-center" style={{ gap: 6, fontSize: 13 }}>
-            <Filter size={14} /> Where source is
-          </span>
-          <Pill active={sourceFilter === "all"} onClick={() => setSourceFilter("all")}>All</Pill>
-          {(Object.keys(LEAD_SOURCE_LABEL) as LeadSource[]).map((src) => (
-            <Pill key={src} active={sourceFilter === src} onClick={() => setSourceFilter(src)}>
-              {LEAD_SOURCE_LABEL[src]}
-            </Pill>
-          ))}
-          <div className="flex-1" />
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search leads…"
-            className="rounded-lg"
-            style={{ height: 32, width: 220, padding: "0 12px", border: "1px solid var(--color-gray-150)", fontSize: 13, outline: "none" }}
-          />
-        </div>
-
-        <DndKanban
-          columns={columns}
-          onMove={(id, col) => move(id, col as LeadStage)}
-          renderCard={(lead) => <LeadCard lead={lead} />}
-        />
-      </div>
-    </div>
-  );
-}
-
-function LeadCard({ lead }: { lead: DemoLead }) {
-  const pill = SOURCE_PILL[lead.source];
-  return (
-    <KanbanCardShell>
-      <div className="flex items-start justify-between" style={{ gap: 8 }}>
-        <Link href={`/leads/${lead.id}`} className="hover:underline" style={{ fontSize: 14, fontWeight: 600 }}>
-          {lead.firstName} {lead.lastName}
-        </Link>
-        <TrafficLightDot value={lead.traffic} />
-      </div>
-      <Row icon={<Car size={14} />}>
-        {lead.vehicle}{lead.bedSize ? ` · ${lead.bedSize}` : ""}
-      </Row>
-      <Row>{lead.interest}</Row>
-      <div className="flex items-center justify-between" style={{ marginTop: 8 }}>
-        <span style={{ fontSize: 12, fontWeight: 500, padding: "2px 8px", borderRadius: 6, background: pill.bg, color: pill.fg }}>
-          {LEAD_SOURCE_LABEL[lead.source]}
-        </span>
-        <span className="tabular" style={{ fontSize: 13, fontWeight: 600 }}>{formatCurrency(lead.estimatedValue)}</span>
-      </div>
-      <div className="flex items-center" style={{ marginTop: 10, gap: 8 }}>
-        <Avatar name={`${lead.firstName} ${lead.lastName}`} size={20} />
-        {lead.intakeEmail && lead.stage === "new_lead" && (
-          <span className="inline-flex items-center text-gray-500" style={{ fontSize: 11, gap: 4 }}>
-            <Mail size={12} /> Intake sent
-          </span>
-        )}
-        <span className="ml-auto inline-flex items-center text-gray-400" style={{ fontSize: 11, gap: 4 }}>
-          <MessageSquare size={12} />
-          <span
-            style={{
-              color: lead.traffic === "red" ? "var(--color-danger-fg)" : lead.traffic === "yellow" ? "var(--color-warning-fg)" : "var(--color-gray-500)",
-            }}
-          >
-            {lead.daysInStage}d
-          </span>
-        </span>
-      </div>
-    </KanbanCardShell>
-  );
-}
-
-function Row({ children, icon }: { children: React.ReactNode; icon?: React.ReactNode }) {
-  return (
-    <div className="flex items-center text-gray-600" style={{ gap: 6, marginTop: 6, fontSize: 12 }}>
-      {icon && <span className="text-gray-400">{icon}</span>}
-      <span className="truncate">{children}</span>
-    </div>
-  );
-}
-
-function Pill({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="rounded-md"
-      style={{
-        height: 26,
-        padding: "0 10px",
-        fontSize: 12,
-        fontWeight: 500,
-        background: active ? "var(--color-brand-100)" : "var(--color-gray-50)",
-        color: active ? "var(--color-brand-700)" : "var(--color-gray-700)",
-        border: "none",
-      }}
-    >
-      {children}
-    </button>
-  );
-}
+type GroupBy = "stage" | "source" | "owner" | "health";
 
 function adaptApiLead(raw: Record<string, unknown>): DemoLead | null {
   const id = String(raw.id ?? "");
@@ -255,4 +54,314 @@ function adaptApiLead(raw: Record<string, unknown>): DemoLead | null {
     aiHandled: Boolean(raw.aiHandled),
     activity: [],
   };
+}
+
+export default function LeadsPage() {
+  const [leads, setLeads] = useState<LeadRow[]>(() => DEMO_LEADS.map((l) => ({ ...l, ownerId: defaultLeadOwner(l.id) })));
+  const [sourceFilter, setSourceFilter] = useState<LeadSource | "all">("all");
+  const [search, setSearch] = useState("");
+  const [personFilter, setPersonFilter] = useState<string | "all">("all");
+  const [groupBy, setGroupBy] = useState<GroupBy>("stage");
+  const [view, setView] = useState<BoardView>("table");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const [openId, setOpenId] = useState<string | null>(null);
+  const { push } = useToast();
+
+  useEffect(() => {
+    fetch("/api/leads")
+      .then((r) => r.json())
+      .then((data: { leads?: Array<Record<string, unknown>> }) => {
+        const extras: LeadRow[] = (data.leads ?? [])
+          .filter((l) => typeof l.id === "string" && !String(l.id).startsWith("demo-"))
+          .map(adaptApiLead)
+          .filter((l): l is DemoLead => !!l)
+          .map((l) => ({ ...l, ownerId: defaultLeadOwner(l.id) }));
+        if (extras.length) {
+          setLeads((prev) => {
+            const ids = new Set(prev.map((p) => p.id));
+            return [...prev, ...extras.filter((e) => !ids.has(e.id))];
+          });
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase();
+    return leads
+      .filter((l) => {
+        if (sourceFilter !== "all" && l.source !== sourceFilter) return false;
+        if (personFilter !== "all" && l.ownerId !== personFilter) return false;
+        if (!q) return true;
+        return [l.firstName, l.lastName, l.vehicle, l.interest, l.phone, l.email].join(" ").toLowerCase().includes(q);
+      })
+      .sort((a, b) => (sortDir === "desc" ? b.estimatedValue - a.estimatedValue : a.estimatedValue - b.estimatedValue));
+  }, [leads, search, sourceFilter, personFilter, sortDir]);
+
+  const groups: BoardGroup<LeadRow>[] = useMemo(() => {
+    if (groupBy === "source") {
+      return SOURCE_STATUS.map((s) => ({
+        id: s.id,
+        title: s.label,
+        color: s.color,
+        items: filtered.filter((l) => l.source === s.id),
+      }));
+    }
+    if (groupBy === "owner") {
+      return STAFF.map((p) => ({
+        id: p.id,
+        title: p.name,
+        color: optionById(LEAD_STAGE_STATUS, "contacted")!.color,
+        items: filtered.filter((l) => l.ownerId === p.id),
+      })).filter((g) => g.items.length);
+    }
+    if (groupBy === "health") {
+      return HEALTH_STATUS.map((s) => ({
+        id: s.id,
+        title: s.label,
+        color: s.color,
+        items: filtered.filter((l) => l.traffic === s.id),
+      }));
+    }
+    return LEAD_STAGE_STATUS.map((s) => ({
+      id: s.id,
+      title: s.label,
+      color: s.color,
+      items: filtered.filter((l) => l.stage === s.id),
+    }));
+  }, [filtered, groupBy]);
+
+  const patch = (id: string, next: Partial<LeadRow>, undoable = true, message?: string) => {
+    const prev = leads.find((l) => l.id === id);
+    setLeads((list) => list.map((l) => (l.id === id ? { ...l, ...next } : l)));
+    if (prev && next.stage && next.stage !== prev.stage && !id.startsWith("demo-")) {
+      fetch(`/api/leads/${encodeURIComponent(id)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ stage: next.stage }),
+      }).catch(() => {});
+    }
+    if (undoable && prev && message) {
+      push(message, () => patch(id, prev, false));
+    }
+  };
+
+  const move = (id: string, toGroup: string) => {
+    const prev = leads.find((l) => l.id === id);
+    if (!prev) return;
+    if (groupBy === "stage") {
+      patch(id, { stage: toGroup as LeadStage, lastContactAt: new Date().toISOString(), daysInStage: 0, traffic: "green" }, true, `Moved ${prev.firstName} to ${LEAD_STAGE_LABELS[toGroup as LeadStage]}`);
+    } else if (groupBy === "source") {
+      patch(id, { source: toGroup as LeadSource }, true, `Source → ${LEAD_SOURCE_LABEL[toGroup as LeadSource]}`);
+    } else if (groupBy === "owner") {
+      patch(id, { ownerId: toGroup }, true, `Assigned to ${STAFF.find((s) => s.id === toGroup)?.name ?? "owner"}`);
+    } else {
+      patch(id, { traffic: toGroup as LeadRow["traffic"] }, true, "Health updated");
+    }
+  };
+
+  const addItem = (groupId?: string) => {
+    const id = `demo-l-new-${Date.now()}`;
+    const stage = groupBy === "stage" && groupId ? (groupId as LeadStage) : "new_lead";
+    const row: LeadRow = {
+      id,
+      firstName: "New",
+      lastName: "lead",
+      phone: "",
+      email: "",
+      source: groupBy === "source" && groupId ? (groupId as LeadSource) : "website",
+      vehicle: "",
+      bedSize: "",
+      color: "",
+      interest: "",
+      stage,
+      estimatedValue: 0,
+      lastContactAt: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
+      daysInStage: 0,
+      traffic: "green",
+      aiHandled: false,
+      activity: [{ id: "n", at: new Date().toISOString(), kind: "staff", title: "Created", body: "Added from the board." }],
+      ownerId: groupBy === "owner" && groupId ? groupId : "nate",
+    };
+    setLeads((list) => [row, ...list]);
+    setOpenId(id);
+  };
+
+  const columns: BoardColumn<LeadRow>[] = [
+    {
+      id: "stage",
+      header: "Status",
+      kind: "status",
+      width: 150,
+      getStatus: (r) => r.stage,
+      statusOptions: LEAD_STAGE_STATUS,
+      onStatus: (r, id) =>
+        patch(r.id, { stage: id as LeadStage, lastContactAt: new Date().toISOString(), daysInStage: 0, traffic: "green" }, true, `Status → ${LEAD_STAGE_LABELS[id as LeadStage]}`),
+    },
+    {
+      id: "health",
+      header: "Health",
+      kind: "status",
+      width: 130,
+      getStatus: (r) => r.traffic,
+      statusOptions: HEALTH_STATUS,
+      onStatus: (r, id) => patch(r.id, { traffic: id as LeadRow["traffic"] }),
+    },
+    {
+      id: "owner",
+      header: "Owner",
+      kind: "person",
+      width: 140,
+      getPerson: (r) => r.ownerId,
+      onPerson: (r, id) => patch(r.id, { ownerId: id }),
+    },
+    {
+      id: "source",
+      header: "Source",
+      kind: "status",
+      width: 130,
+      getStatus: (r) => r.source,
+      statusOptions: SOURCE_STATUS,
+      onStatus: (r, id) => patch(r.id, { source: id as LeadSource }),
+    },
+    {
+      id: "vehicle",
+      header: "Vehicle",
+      kind: "text",
+      width: 170,
+      getText: (r) => r.vehicle,
+      onText: (r, t) => patch(r.id, { vehicle: t }),
+    },
+    {
+      id: "contact",
+      header: "Last contact",
+      kind: "date",
+      width: 130,
+      getDate: (r) => r.lastContactAt,
+      onDate: (r, iso) => patch(r.id, { lastContactAt: iso }),
+    },
+    {
+      id: "value",
+      header: "Deal value",
+      kind: "number",
+      width: 120,
+      getNumber: (r) => r.estimatedValue,
+    },
+  ];
+
+  const open = leads.find((l) => l.id === openId) ?? null;
+
+  return (
+    <div>
+      <MondayBoard
+        title="Leads"
+        color="#fdab3d"
+        groups={groups}
+        columns={columns}
+        getName={(r) => `${r.firstName} ${r.lastName}`.trim()}
+        onRename={(r, name) => {
+          const parts = name.trim().split(/\s+/);
+          patch(r.id, { firstName: parts[0] || r.firstName, lastName: parts.slice(1).join(" ") });
+        }}
+        onMove={move}
+        onOpen={(r) => setOpenId(r.id)}
+        onNewItem={addItem}
+        newItemLabel="New lead"
+        search={search}
+        onSearch={setSearch}
+        searchPlaceholder="Search leads — try Kim or 555"
+        personFilter={personFilter}
+        onPersonFilter={setPersonFilter}
+        getPersonId={(r) => r.ownerId}
+        sortLabel={sortDir === "desc" ? "Value ↓" : "Value ↑"}
+        onSort={() => setSortDir((d) => (d === "desc" ? "asc" : "desc"))}
+        groupByLabel={groupBy}
+        groupByOptions={[
+          { id: "stage", label: "Status" },
+          { id: "source", label: "Source" },
+          { id: "owner", label: "Owner" },
+          { id: "health", label: "Health" },
+        ]}
+        onGroupBy={(id) => setGroupBy(id as GroupBy)}
+        filterSlot={
+          <select
+            value={sourceFilter}
+            onChange={(e) => setSourceFilter(e.target.value as LeadSource | "all")}
+            style={{ height: 32, border: "1px solid var(--color-gray-150)", borderRadius: 4, padding: "0 8px", fontSize: 13, background: "white" }}
+          >
+            <option value="all">All sources</option>
+            {(Object.keys(LEAD_SOURCE_LABEL) as LeadSource[]).map((s) => (
+              <option key={s} value={s}>
+                {LEAD_SOURCE_LABEL[s]}
+              </option>
+            ))}
+          </select>
+        }
+        getDate={(r) => r.lastContactAt}
+        sumItems={(items) => items.reduce((s, l) => s + l.estimatedValue, 0)}
+        view={view}
+        onViewChange={setView}
+      />
+
+      <ItemPanel
+        open={!!open}
+        title={open ? `${open.firstName} ${open.lastName}` : ""}
+        subtitle={open ? `${LEAD_STAGE_LABELS[open.stage]} · ${formatCurrency(open.estimatedValue)}` : ""}
+        onClose={() => setOpenId(null)}
+        updates={
+          open
+            ? open.activity.map((a) => ({
+                id: a.id,
+                at: a.at,
+                author: a.kind === "ai" || a.kind === "email" ? "Sarah AI" : a.kind === "customer" ? `${open.firstName} ${open.lastName}` : "Nate Brooks",
+                title: a.title,
+                body: a.body,
+              }))
+            : []
+        }
+        files={
+          open
+            ? [
+                ...(open.intakeEmail ? [{ name: `${open.firstName}-intake.eml`, size: "4 KB", kind: "doc" as const }] : []),
+                { name: `${open.vehicle || "vehicle"}-notes.pdf`, size: "128 KB", kind: "pdf" as const },
+              ]
+            : []
+        }
+        info={
+          open
+            ? [
+                { label: "Phone", value: formatPhone(open.phone) || "—" },
+                { label: "Email", value: open.email || "—" },
+                { label: "Source", value: LEAD_SOURCE_LABEL[open.source] },
+                { label: "Vehicle", value: open.vehicle || "—" },
+                { label: "Bed / color", value: `${open.bedSize || "—"} · ${open.color || "—"}` },
+                { label: "Want", value: open.interest || "—" },
+                { label: "Stage", value: LEAD_STAGE_LABELS[open.stage] },
+                { label: "Days in stage", value: String(open.daysInStage) },
+                { label: "AI intake", value: open.aiHandled ? "On" : "Human-owned" },
+              ]
+            : []
+        }
+        onAddUpdate={(text) => {
+          if (!open) return;
+          patch(open.id, {
+            activity: [
+              { id: `u-${Date.now()}`, at: new Date().toISOString(), kind: "staff", title: "Update", body: text },
+              ...open.activity,
+            ],
+          });
+        }}
+        footer={
+          open ? (
+            <Link href={`/leads/${open.id}`}>
+              <Button variant="filled" className="w-full">
+                Open full lead
+              </Button>
+            </Link>
+          ) : null
+        }
+      />
+    </div>
+  );
 }

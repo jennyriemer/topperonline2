@@ -1,12 +1,11 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Archive, Bell, Car, MapPin } from "lucide-react";
-import { PageHeader, Button, Modal, Avatar } from "@/components/ui";
-import { SampleBanner } from "@/components/demo/SampleBadge";
-import { DndKanban, KanbanCardShell } from "@/components/kanban/DndKanban";
+import { Archive } from "lucide-react";
+import { MondayBoard, ItemPanel, type BoardColumn, type BoardGroup, type BoardView } from "@/components/board";
+import { Button, Modal } from "@/components/ui";
 import { useToast } from "@/components/layout/Toast";
 import { formatCurrency, formatPhone } from "@/lib/utils";
 import {
@@ -22,13 +21,9 @@ import {
   type DemoJob,
   type JobBucket,
 } from "@/lib/demo/crm";
+import { JOB_BUCKET_STATUS, LOCATION_STATUS, defaultJobOwner } from "@/lib/monday";
 
-const DOT: Record<JobBucket, string> = {
-  waiting_arrival: "#F5B900",
-  waiting_install: "#0E4CA1",
-  waiting_payment: "#FF5B59",
-  paid: "#0FC27B",
-};
+type JobRow = DemoJob & { ownerId: string };
 
 export default function JobsPage() {
   return (
@@ -44,15 +39,20 @@ function JobsInner() {
   const { push } = useToast();
   const initialBucket = params.get("bucket") as JobBucket | null;
   const focus = params.get("focus");
-  const [jobs, setJobs] = useState(DEMO_JOBS);
+  const [jobs, setJobs] = useState<JobRow[]>(() => DEMO_JOBS.map((j) => ({ ...j, ownerId: defaultJobOwner(j.installer) })));
   const [showArchive, setShowArchive] = useState(initialBucket === "paid");
-  const [notifyJob, setNotifyJob] = useState<DemoJob | null>(
-    jobs.find((j) => j.id === focus && j.bucket === "waiting_install") ?? null
+  const [notifyJob, setNotifyJob] = useState<JobRow | null>(
+    (jobs.find((j) => j.id === focus && j.bucket === "waiting_install") as JobRow | undefined) ?? null
   );
+  const [search, setSearch] = useState("");
+  const [personFilter, setPersonFilter] = useState<string | "all">("all");
+  const [view, setView] = useState<BoardView>("table");
+  const [openId, setOpenId] = useState<string | null>(focus);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
   const visibleBuckets = showArchive ? JOB_BUCKETS : JOB_BUCKETS.filter((b) => b !== "paid");
 
-  const move = (id: string, bucket: JobBucket, undoable = true) => {
+  const moveBucket = (id: string, bucket: JobBucket, undoable = true) => {
     const prev = jobs.find((j) => j.id === id);
     setJobs((list) =>
       list.map((j) => {
@@ -71,103 +71,186 @@ function JobsInner() {
     if (undoable && prev) {
       const client = getDemoClient(prev.clientId);
       push(`Moved ${client ? clientDisplayName(client) : "job"} to ${JOB_BUCKET_META[bucket].short}`, () =>
-        move(id, prev.bucket, false)
+        moveBucket(id, prev.bucket, false)
       );
+    }
+    if (bucket === "waiting_install") {
+      const job = jobs.find((j) => j.id === id);
+      if (job) setNotifyJob({ ...job, bucket });
     }
   };
 
-  const columns = visibleBuckets.map((bucket) => {
-    const items = jobs.filter((j) => j.bucket === bucket);
-    const meta = JOB_BUCKET_META[bucket];
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase();
+    return jobs
+      .filter((j) => {
+        if (personFilter !== "all" && j.ownerId !== personFilter) return false;
+        if (!q) return true;
+        const client = getDemoClient(j.clientId);
+        return [client ? clientDisplayName(client) : "", j.vehicle, j.manufacturer, j.model, j.color, j.poNumber ?? ""]
+          .join(" ")
+          .toLowerCase()
+          .includes(q);
+      })
+      .sort((a, b) => (sortDir === "desc" ? jobTotal(b) - jobTotal(a) : jobTotal(a) - jobTotal(b)));
+  }, [jobs, search, personFilter, sortDir]);
+
+  const groups: BoardGroup<JobRow>[] = visibleBuckets.map((bucket) => {
+    const meta = JOB_BUCKET_STATUS.find((s) => s.id === bucket)!;
     return {
       id: bucket,
-      title: meta.short,
-      hint: meta.hint,
-      dot: DOT[bucket],
-      items,
-      sum: items.reduce((s, j) => s + jobTotal(j), 0),
+      title: JOB_BUCKET_META[bucket].short,
+      color: meta.color,
+      items: filtered.filter((j) => j.bucket === bucket),
     };
   });
 
+  const columns: BoardColumn<JobRow>[] = [
+    {
+      id: "bucket",
+      header: "Status",
+      kind: "status",
+      width: 160,
+      getStatus: (r) => r.bucket,
+      statusOptions: JOB_BUCKET_STATUS.filter((s) => showArchive || s.id !== "paid"),
+      onStatus: (r, id) => moveBucket(r.id, id as JobBucket),
+    },
+    {
+      id: "owner",
+      header: "Owner",
+      kind: "person",
+      width: 140,
+      getPerson: (r) => r.ownerId,
+      onPerson: (r, id) => setJobs((list) => list.map((j) => (j.id === r.id ? { ...j, ownerId: id } : j))),
+    },
+    {
+      id: "location",
+      header: "Shop",
+      kind: "status",
+      width: 150,
+      getStatus: (r) => r.location,
+      statusOptions: LOCATION_STATUS,
+      onStatus: (r, id) => setJobs((list) => list.map((j) => (j.id === r.id ? { ...j, location: id as JobRow["location"] } : j))),
+    },
+    {
+      id: "vehicle",
+      header: "Vehicle",
+      kind: "text",
+      width: 180,
+      getText: (r) => r.vehicle,
+      onText: (r, t) => setJobs((list) => list.map((j) => (j.id === r.id ? { ...j, vehicle: t } : j))),
+    },
+    {
+      id: "eta",
+      header: "Date",
+      kind: "date",
+      width: 130,
+      getDate: (r) => r.installedAt ?? r.arrivedAt ?? r.eta ?? r.orderedAt,
+      onDate: (r, iso) => setJobs((list) => list.map((j) => (j.id === r.id ? { ...j, eta: iso } : j))),
+    },
+    {
+      id: "value",
+      header: "Invoice",
+      kind: "number",
+      width: 120,
+      getNumber: (r) => jobTotal(r),
+    },
+  ];
+
+  const open = jobs.find((j) => j.id === openId) ?? null;
+  const openClient = open ? getDemoClient(open.clientId) : undefined;
+  const openInv = open ? getDemoInvoice(open.invoiceId) : undefined;
+
   return (
     <div>
-      <PageHeader
-        breadcrumbs={[{ label: "Pipelines" }, { label: "Jobs" }]}
-        title="Invoice / job board"
-        subtitle="Staff moves jobs by hand. Billing date starts when the topper is installed."
+      <MondayBoard
+        title="Jobs / invoices"
+        color="#579bfc"
+        groups={groups}
+        columns={columns}
+        getName={(r) => {
+          const c = getDemoClient(r.clientId);
+          return c ? clientDisplayName(c) : r.vehicle;
+        }}
+        onMove={(id, to) => moveBucket(id, to as JobBucket)}
+        onOpen={(r) => setOpenId(r.id)}
+        onNewItem={() => router.push("/clients")}
+        newItemLabel="New from client"
+        search={search}
+        onSearch={setSearch}
+        searchPlaceholder="Search jobs"
+        personFilter={personFilter}
+        onPersonFilter={setPersonFilter}
+        sortLabel={sortDir === "desc" ? "Value ↓" : "Value ↑"}
+        onSort={() => setSortDir((d) => (d === "desc" ? "asc" : "desc"))}
+        getDate={(r) => r.installedAt ?? r.arrivedAt ?? r.eta ?? r.orderedAt}
+        sumItems={(items) => items.reduce((s, j) => s + jobTotal(j), 0)}
+        view={view}
+        onViewChange={setView}
         actions={
-          <>
-            <Button variant={showArchive ? "filled" : "outlined"} leadingIcon={<Archive size={14} />} onClick={() => setShowArchive((v) => !v)}>
-              {showArchive ? "Hide archive" : "Paid archive"}
-            </Button>
-            <Button variant="filled" onClick={() => router.push("/clients")}>
-              New from client
-            </Button>
-          </>
+          <Button variant={showArchive ? "filled" : "outlined"} leadingIcon={<Archive size={14} />} onClick={() => setShowArchive((v) => !v)}>
+            {showArchive ? "Hide archive" : "Paid archive"}
+          </Button>
         }
       />
 
-      <div style={{ padding: "20px 24px 40px" }}>
-        <SampleBanner>
-          Four buckets: Ordered → In → Installed (invoice sent, QuickBooks not connected) → Paid archive. Drag cards between columns.
-        </SampleBanner>
-
-        <DndKanban
-          columns={columns}
-          onMove={(id, col) => move(id, col as JobBucket)}
-          renderCard={(job) => (
-            <JobCard job={job} highlight={focus === job.id} onNotify={() => setNotifyJob(job)} />
-          )}
-        />
-      </div>
+      <ItemPanel
+        open={!!open}
+        title={openClient ? clientDisplayName(openClient) : ""}
+        subtitle={open ? `${open.manufacturer} ${open.model} · ${JOB_BUCKET_META[open.bucket].short}` : ""}
+        onClose={() => setOpenId(null)}
+        updates={
+          open
+            ? [
+                { id: "o", at: open.orderedAt, author: "Nate Brooks", title: "Ordered", body: `${open.manufacturer} ${open.model} PO ${open.poNumber ?? "—"}.` },
+                ...(open.arrivedAt ? [{ id: "a", at: open.arrivedAt, author: "Shop", title: "Arrived", body: "On the lot — notify the customer." }] : []),
+                ...(open.installedAt ? [{ id: "i", at: open.installedAt, author: open.installer ?? "Installer", title: "Installed", body: "Billing date starts today." }] : []),
+                ...(open.notes ? [{ id: "n", at: open.orderedAt, author: "Notes", title: "Job notes", body: open.notes }] : []),
+              ]
+            : []
+        }
+        files={
+          openInv
+            ? [
+                { name: `${openInv.number}.pdf`, size: "86 KB", kind: "pdf" as const },
+                { name: `${open?.poNumber ?? "PO"}.pdf`, size: "42 KB", kind: "pdf" as const },
+              ]
+            : []
+        }
+        info={
+          open && openClient && openInv
+            ? [
+                { label: "Phone", value: formatPhone(openClient.phone) },
+                { label: "Vehicle", value: open.vehicle },
+                { label: "Product", value: `${open.manufacturer} ${open.model}` },
+                { label: "Color", value: open.color },
+                { label: "Shop", value: locationLabel(open.location) },
+                { label: "Invoice", value: openInv.number },
+                { label: "Total", value: formatCurrency(invoiceTotals(openInv).total) },
+                { label: "Status", value: JOB_BUCKET_META[open.bucket].short },
+              ]
+            : []
+        }
+        footer={
+          open && openInv ? (
+            <div className="flex" style={{ gap: 8 }}>
+              <Link href={`/invoices/${openInv.id}`} className="flex-1">
+                <Button variant="filled" className="w-full">
+                  Open invoice
+                </Button>
+              </Link>
+              {open.bucket === "waiting_install" && (
+                <Button variant="outlined" onClick={() => setNotifyJob(open)}>
+                  Notify
+                </Button>
+              )}
+            </div>
+          ) : null
+        }
+      />
 
       {notifyJob && <ArrivalModal job={notifyJob} onClose={() => setNotifyJob(null)} />}
     </div>
-  );
-}
-
-function JobCard({ job, highlight, onNotify }: { job: DemoJob; highlight?: boolean; onNotify: () => void }) {
-  const client = getDemoClient(job.clientId)!;
-  const invoice = getDemoInvoice(job.invoiceId)!;
-  const totals = invoiceTotals(invoice);
-
-  return (
-    <KanbanCardShell className={highlight ? "ring-2" : undefined} >
-      <div className="flex items-start justify-between" style={{ gap: 8 }}>
-        <div className="min-w-0">
-          <Link href={`/clients/${client.id}`} className="hover:underline" style={{ fontSize: 14, fontWeight: 600 }}>
-            {clientDisplayName(client)}
-          </Link>
-          <div className="font-mono text-gray-500" style={{ fontSize: 11, marginTop: 2 }}>
-            {formatPhone(client.phone)}
-          </div>
-        </div>
-        <div className="tabular" style={{ fontSize: 13, fontWeight: 600 }}>{formatCurrency(totals.total)}</div>
-      </div>
-      <div className="flex items-center text-gray-600" style={{ gap: 6, marginTop: 8, fontSize: 12 }}>
-        <Car size={14} className="text-gray-400" />
-        {job.vehicle}
-      </div>
-      <div style={{ fontSize: 12, fontWeight: 500, marginTop: 2 }}>
-        {job.manufacturer} {job.model} · {job.color}
-      </div>
-      <div className="flex items-center text-gray-500" style={{ gap: 6, marginTop: 6, fontSize: 11 }}>
-        <MapPin size={12} />
-        {locationLabel(job.location)}
-        {job.eta && job.bucket === "waiting_arrival" && <span>· ETA {job.eta}</span>}
-      </div>
-      <div className="flex items-center" style={{ gap: 6, marginTop: 10 }}>
-        <Avatar name={clientDisplayName(client)} size={20} />
-        <Link href={`/invoices/${invoice.id}`} className="text-brand-600" style={{ fontSize: 12, fontWeight: 600 }}>
-          Invoice
-        </Link>
-        {job.bucket === "waiting_install" && (
-          <button type="button" onClick={onNotify} className="text-gray-600" style={{ fontSize: 12, fontWeight: 600, border: "none", background: "transparent" }}>
-            <Bell size={12} className="inline" /> Notify
-          </button>
-        )}
-      </div>
-    </KanbanCardShell>
   );
 }
 
@@ -181,7 +264,9 @@ function ArrivalModal({ job, onClose }: { job: DemoJob; onClose: () => void }) {
       subtitle={`${job.manufacturer} ${job.model} for ${clientDisplayName(client)}`}
       footer={
         <>
-          <Button variant="outlined" onClick={onClose}>Later</Button>
+          <Button variant="outlined" onClick={onClose}>
+            Later
+          </Button>
           <Link href={`/schedule?job=${job.id}&date=${new Date().toISOString().slice(0, 10)}`}>
             <Button variant="filled">Open calendar</Button>
           </Link>
@@ -192,7 +277,9 @@ function ArrivalModal({ job, onClose }: { job: DemoJob; onClose: () => void }) {
         Call or email the customer, then drop them on the install calendar.
       </p>
       <div className="rounded-xl" style={{ padding: "12px 14px", background: "var(--color-gray-50)", fontSize: 13, lineHeight: 1.55 }}>
-        <div className="text-gray-500" style={{ fontSize: 11, fontWeight: 600 }}>Suggested SMS</div>
+        <div className="text-gray-500" style={{ fontSize: 11, fontWeight: 600 }}>
+          Suggested SMS
+        </div>
         <p style={{ marginTop: 6 }}>
           Hi {client.firstName} — Suburban Toppers. Your {job.manufacturer} {job.model} is in at the {locationLabel(job.location)} shop. Want us to put you on the calendar this week?
         </p>

@@ -1,18 +1,15 @@
 import {
   Home,
-  Bell,
-  CheckSquare,
   Calendar,
   PhoneCall,
   Users,
   Package,
-  FileText,
-  Truck,
-  Factory,
-  Sparkles,
   ClipboardList,
+  Sparkles,
   BarChart3,
   Wrench,
+  CheckSquare,
+  Bell,
   type LucideIcon,
 } from "lucide-react";
 
@@ -32,28 +29,29 @@ export type NavItem = {
   href: string;
   icon: LucideIcon;
   tile?: RecordIcon;
+  color?: string;
 };
 
-export const PRIMARY_NAV: NavItem[] = [
-  { label: "Home", href: "/dashboard", icon: Home },
-  { label: "Action queue", href: "/dashboard#queue", icon: Bell },
-  { label: "Tasks", href: "/dashboard#queue", icon: CheckSquare },
-  { label: "Schedule", href: "/schedule", icon: Calendar },
-  { label: "Phone AI", href: "/phone-agent", icon: PhoneCall },
+export const WORKSPACE_BOARDS: NavItem[] = [
+  { label: "Home", href: "/dashboard", icon: Home, color: "#FFD504" },
+  { label: "My work", href: "/dashboard#queue", icon: CheckSquare, color: "#579bfc" },
+  { label: "Action queue", href: "/dashboard#queue", icon: Bell, color: "#e2445c" },
 ];
 
-export const PIPELINES: NavItem[] = [
-  { label: "Leads & Outreach", href: "/leads", icon: Sparkles, tile: { bg: "#FC811F", fg: "#fff" } },
-  { label: "Jobs board", href: "/jobs", icon: ClipboardList, tile: { bg: "#0E4CA1", fg: "#fff" } },
+export const PIPELINE_BOARDS: NavItem[] = [
+  { label: "Leads", href: "/leads", icon: Sparkles, color: "#fdab3d", tile: { bg: "#fdab3d", fg: "#fff" } },
+  { label: "Jobs", href: "/jobs", icon: ClipboardList, color: "#579bfc", tile: { bg: "#579bfc", fg: "#fff" } },
+  { label: "Clients", href: "/clients", icon: Users, color: "#00c875", tile: { bg: "#00c875", fg: "#fff" } },
+  { label: "Schedule", href: "/schedule", icon: Calendar, color: "#a25ddc", tile: { bg: "#a25ddc", fg: "#fff" } },
+  { label: "Stock", href: "/stock", icon: Package, color: "#ffcb00", tile: { bg: "#ffcb00", fg: "#323338" } },
+  { label: "Phone AI", href: "/phone-agent", icon: PhoneCall, color: "#007eb5", tile: { bg: "#007eb5", fg: "#fff" } },
 ];
 
-export const RECORDS: NavItem[] = [
-  { label: "Clients", href: "/clients", icon: Users, tile: { bg: "#0E4CA1", fg: "#fff" } },
-  { label: "Vehicles", href: "/clients", icon: Truck, tile: { bg: "#9B69FF", fg: "#fff" } },
-  { label: "Stock", href: "/stock", icon: Package, tile: { bg: "#FFD504", fg: "#1C1D1F" } },
-  { label: "Invoices", href: "/jobs", icon: FileText, tile: { bg: "#03B071", fg: "#fff" } },
-  { label: "Manufacturers", href: "/maintenance/manufacturers", icon: Factory, tile: { bg: "#00B5E6", fg: "#fff" } },
-];
+export const PRIMARY_NAV: NavItem[] = [...WORKSPACE_BOARDS];
+
+export const PIPELINES: NavItem[] = PIPELINE_BOARDS.filter((b) => b.href === "/leads" || b.href === "/jobs");
+
+export const RECORDS: NavItem[] = PIPELINE_BOARDS.filter((b) => !["/leads", "/jobs", "/phone-agent"].includes(b.href));
 
 export const REPORTS: NavLeaf[] = [
   { label: "Historical comparison", href: "/reports/historical", icon: BarChart3 },
@@ -74,7 +72,7 @@ export const MAINTENANCE: NavLeaf[] = [
   { label: "Items", href: "/maintenance/items", icon: Wrench },
 ];
 
-/** @deprecated kept for any leftover imports */
+/** @deprecated kept for leftover imports */
 export const NAV_ITEMS = [
   ...PRIMARY_NAV,
   ...PIPELINES,
