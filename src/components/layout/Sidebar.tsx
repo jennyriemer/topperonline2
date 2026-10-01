@@ -5,8 +5,9 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { ChevronDown, LogOut, PanelLeft, Search, Settings, Star } from "lucide-react";
 import { MAINTENANCE, PIPELINE_BOARDS, REPORTS, WORKSPACE_BOARDS, type NavItem } from "@/lib/nav";
-import { cn } from "@/lib/utils";
+import { BrandLogo } from "@/components/brand/Logo";
 import { actionQueue } from "@/lib/demo/crm";
+import { cn } from "@/lib/utils";
 
 const STORAGE_KEY = "st-sidebar-collapsed";
 const TOGGLE_EVENT = "st-sidebar-toggle";
@@ -113,58 +114,57 @@ export function Sidebar({ onCommand }: { onCommand?: () => void }) {
       }}
       aria-label="Workspace"
     >
-      <div className="relative shrink-0" style={{ padding: collapsed ? "10px 8px" : "10px 12px" }}>
-        <button
-          type="button"
-          onClick={() => setShopOpen((o) => !o)}
-          className={cn("w-full flex items-center rounded-md hover:bg-white/10", collapsed && "justify-center")}
-          style={{ height: 40, gap: 10, padding: collapsed ? 0 : "0 6px", border: "none", background: "transparent", color: "white" }}
-        >
-          <span
-            className="inline-flex items-center justify-center shrink-0 font-display"
-            style={{
-              width: 32,
-              height: 32,
-              borderRadius: 8,
-              background: "#FFD504",
-              color: "#0E4CA1",
-              fontSize: 12,
-              fontWeight: 800,
-              letterSpacing: "-0.04em",
-            }}
-          >
-            ST
-          </span>
-          {!collapsed && (
-            <>
-              <span className="flex-1 text-left min-w-0">
-                <span className="block truncate" style={{ fontSize: 14, fontWeight: 700 }}>
-                  Suburban Toppers
-                </span>
-                <span className="block truncate" style={{ fontSize: 11, opacity: 0.75 }}>
-                  {shopLabel}
-                </span>
-              </span>
-              <ChevronDown size={14} style={{ opacity: 0.8 }} />
-            </>
-          )}
-        </button>
-        {!collapsed && (
+      <div className="relative shrink-0" style={{ padding: collapsed ? "10px 8px" : "10px 12px 8px" }}>
+        {collapsed ? (
           <button
             type="button"
-            onClick={() => writeCollapsed(true)}
-            className="absolute text-white/70 hover:bg-white/10 rounded-md"
-            style={{ right: 8, top: 14, width: 28, height: 28, border: "none", background: "transparent" }}
-            aria-label="Collapse sidebar"
+            onClick={() => setShopOpen((o) => !o)}
+            className="w-full flex items-center justify-center rounded-md hover:bg-white/10"
+            style={{ minHeight: 40, border: "none", background: "transparent", color: "white" }}
+            aria-label="Suburban Toppers workspace"
           >
-            <PanelLeft size={16} className="mx-auto" />
+            <BrandLogo width={40} compact />
           </button>
+        ) : (
+          <>
+            <div className="flex items-start" style={{ gap: 8 }}>
+              <BrandLogo width={152} />
+              <button
+                type="button"
+                onClick={() => writeCollapsed(true)}
+                className="text-white/70 hover:bg-white/10 rounded-md shrink-0"
+                style={{ width: 28, height: 28, border: "none", background: "transparent", marginLeft: "auto" }}
+                aria-label="Collapse sidebar"
+              >
+                <PanelLeft size={16} className="mx-auto" />
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShopOpen((o) => !o)}
+              className="w-full flex items-center rounded-md hover:bg-white/10"
+              style={{
+                marginTop: 8,
+                height: 28,
+                padding: "0 6px",
+                gap: 6,
+                border: "none",
+                background: "transparent",
+                color: "white",
+                fontSize: 12,
+                fontWeight: 600,
+              }}
+            >
+              <span className="flex-1 text-left truncate">{shopLabel}</span>
+              <ChevronDown size={14} style={{ opacity: 0.8 }} />
+            </button>
+          </>
         )}
         {shopOpen && !collapsed && (
           <div
             className="absolute z-50"
             style={{
-              top: 52,
+              top: 88,
               left: 8,
               right: 8,
               borderRadius: 8,
