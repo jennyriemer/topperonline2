@@ -9,7 +9,9 @@ export function middleware(request: NextRequest) {
     pathname === "/auth/pin" ||
     pathname.startsWith("/_next") ||
     pathname.startsWith("/api") ||
-    pathname === "/favicon.ico"
+    pathname === "/favicon.ico" ||
+    pathname === "/icon.png" ||
+    /\.(?:png|svg|ico|jpg|jpeg|webp|gif)$/i.test(pathname)
   ) {
     return NextResponse.next();
   }
@@ -33,6 +35,6 @@ export const config = {
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      */
-    "/((?!_next/static|_next/image|favicon.ico).*)",
+    "/((?!_next/static|_next/image|favicon.ico|icon.png|.*\\.(?:png|svg|ico|webp|gif)$).*)",
   ],
 };
